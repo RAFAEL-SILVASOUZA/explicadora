@@ -6,8 +6,8 @@ export interface ImagemProcessada {
   mime: string;
 }
 
-const LLM_BASE_URL = 'http://192.168.18.4:1234/v1';
-const LLM_MODEL = 'local-model';
+const LLM_BASE_URL = process.env.LLM_BASE_URL || 'http://192.168.18.4:1234/v1';
+const LLM_MODEL = process.env.LLM_MODEL || 'local-model';
 
 async function callLLM(messages: any[]): Promise<string> {
   const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
@@ -36,6 +36,25 @@ function extrairArrayJSON<T>(text: string): T {
   return JSON.parse(cleaned) as T;
 }
 
+function normalizar(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim();
+}
+
+// Rede de segurança: pega o caso (comum em LLMs locais menores) em que o modelo
+// ignora a instrução do prompt e cola a resposta dentro da própria dica.
+function dicaRevelaResposta(dica: string, respostaCorreta: string): boolean {
+  const respostaNorm = normalizar(respostaCorreta);
+  if (respostaNorm.length < 3) return false; // respostas curtas demais geram falso positivo
+  const dicaNorm = normalizar(dica);
+  const regex = new RegExp(`\\b${respostaNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+  return regex.test(dicaNorm);
+}
+
 export async function gerarQuestoes(conteudoTexto: string, imagens: ImagemProcessada[]): Promise<QuestaoLLM[]> {
   const userContent: any[] = [];
 
@@ -55,15 +74,29 @@ export async function gerarQuestoes(conteudoTexto: string, imagens: ImagemProces
     { role: 'user', content: userContent },
   ];
 
-  // 1 retry em caso de JSON inválido (comum quando há muitas imagens).
+  // Retries em caso de JSON inválido (comum quando há muitas imagens) ou de
+  // dica que revela a resposta (comum em LLMs locais menores).
+  const MAX_TENTATIVAS = 3;
   let ultimoErro: unknown;
-  for (let tentativa = 0; tentativa < 2; tentativa++) {
+  for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
     const response = await callLLM(messages);
     try {
       const questoes = extrairArrayJSON<QuestaoLLM[]>(response);
       if (Array.isArray(questoes) && questoes.length > 0) {
-        // Garante que o campo 'dica' exista mesmo se a LLM omitir.
-        return questoes.map((q) => ({ ...q, dica: q.dica || '' }));
+        const comDica = questoes.map((q) => ({ ...q, dica: q.dica || '' }));
+        const algumaDicaVaza = comDica.some((q) => dicaRevelaResposta(q.dica, q.resposta_correta));
+
+        if (!algumaDicaVaza) return comDica;
+
+        if (tentativa < MAX_TENTATIVAS - 1) {
+          ultimoErro = new Error('Dica revelou a resposta');
+          continue;
+        }
+
+        // Última tentativa: em vez de descartar questões boas, some só a dica que vazou.
+        return comDica.map((q) =>
+          dicaRevelaResposta(q.dica, q.resposta_correta) ? { ...q, dica: '' } : q
+        );
       }
       ultimoErro = new Error('LLM retornou lista vazia');
     } catch (e) {

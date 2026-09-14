@@ -1,0 +1,13 @@
+services:
+  explicadora:
+    build: .
+    container_name: explicadora
+    ports:
+      - "5003:3000"
+    environment:
+      LLM_BASE_URL: "http://192.168.18.4:1234/v1"
+      LLM_MODEL: "local-model"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    restart: unless-stopped

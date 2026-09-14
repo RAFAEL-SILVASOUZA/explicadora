@@ -17,11 +17,20 @@ REGRAS DE REDAÇÃO (MUITO IMPORTANTES):
 - O enunciado deve fazer sentido por si só, sem precisar de nenhum material externo.
 
 DICA (campo obrigatório):
-- Cada questão deve ter um campo "dica" com uma explicação em PORTUGUÊS que AJUDA o aluno a chegar à resposta, mas que NÃO revela a resposta.
-- A dica deve orientar o raciocínio, lembrar um conceito, dar um exemplo ou traduzir um termo difícil, sem dar a resposta pronta.
-- Para matérias em inglês (ou qualquer matéria com termos em outro idioma), a dica deve explicar em português o que o termo ou a pergunta significa, pois o aluno pode não dominar o idioma.
-- Exemplo de boa dica: "Pense no que o animal faz para se locomover. Em inglês, 'jump' significa pular." (ajuda, mas não diz a resposta)
-- Exemplo de dica RUIM (não use): "A resposta é 'jump'" (revela a resposta)
+- Cada questão deve ter um campo "dica" com uma explicação do ASSUNTO/CONCEITO por trás da pergunta, em PORTUGUÊS. A dica ensina a matéria, ela NÃO é um atalho para a resposta.
+- Pense assim: a dica é o trecho de uma aula sobre o tema, não uma colinha da questão. Ela deve fazer sentido mesmo sem a pergunta ao lado.
+- TESTE OBRIGATÓRIO antes de escrever a dica: essa mesma dica poderia ser usada em OUTRA questão qualquer sobre o mesmo assunto, com resposta diferente? Se a resposta for "não", a dica está colada demais na resposta certa — reescreva de forma mais geral.
+- PROIBIDO: a dica NUNCA pode conter a palavra, número ou expressão que é a resposta correta (nem no meio da frase, nem disfarçada), nem nenhuma das opções incorretas. Também é proibido descrever a resposta de um jeito que só sobra uma opção possível (ex.: citar 3 das 4 características e deixar faltando só um traço exclusivo da resposta certa).
+- O que a dica PODE fazer: explicar a regra geral, o conceito, a fórmula, o significado de uma palavra difícil ou de um termo em outro idioma, dar um exemplo DIFERENTE do da questão, ou lembrar um passo a passo de raciocínio.
+- Para matérias em inglês (ou qualquer termo em outro idioma que apareça na pergunta ou nas opções, MAS NÃO na resposta correta), traduza esse termo em português — isso ajuda a entender o enunciado sem entregar a resposta.
+- Exemplos de boa dica (ensina o assunto, não entrega a resposta):
+  - Pergunta "Quanto é 7 x 8?" → dica: "Lembre-se da tabuada do 7: você pode somar 7 oito vezes, ou pensar em 7 x 8 como 7 x 10 menos 7 x 2."
+  - Pergunta "Qual é o verbo em 'The cat jumps'?" → dica: "Em inglês, o verbo é a palavra que indica a ação feita pelo sujeito da frase. Procure a palavra que mostra o que o gato está fazendo."
+  - Pergunta "Qual é a capital da França?" → dica: "As capitais costumam ser as cidades onde ficam os principais órgãos do governo do país. Pense em uma cidade europeia famosa por seus museus e pela Torre Eiffel." (cita algo associado ao país, não a resposta)
+- Exemplos de dica RUIM (NÃO faça, pois revela ou quase revela a resposta):
+  - "A resposta é 8" / "É Paris" / "Começa com a letra P"
+  - "Pense em 7 vezes 8, que dá 56" (fez a conta pelo aluno)
+  - "É a cidade onde fica a Torre Eiffel" (só existe uma resposta possível para isso, então equivale a entregar a resposta)
 
 Responda APENAS com um array JSON válido, sem markdown, sem texto extra. Formato:
 [

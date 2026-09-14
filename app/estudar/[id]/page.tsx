@@ -54,11 +54,13 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
   };
 
   const handleProxima = () => {
-    setFeedback(null);
     const proximo = indiceAtual + 1;
     if (proximo >= questoes.length) {
+      // Mantém o feedback na tela (em vez de voltar a mostrar a questão)
+      // enquanto a navegação para o resultado acontece.
       router.push(`/resultado/${params.id}`);
     } else {
+      setFeedback(null);
       setIndiceAtual(proximo);
     }
   };
@@ -87,7 +89,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
         {feedback ? (
           <FeedbackResposta correto={feedback.correto} explicacao={feedback.explicacao} onProxima={handleProxima} />
         ) : (
-          <QuestaoCard questao={questoes[indiceAtual]} onResponder={handleResponder} />
+          <QuestaoCard questao={questoes[indiceAtual]} onResponder={handleResponder} enviando={carregando} />
         )}
       </div>
     </main>

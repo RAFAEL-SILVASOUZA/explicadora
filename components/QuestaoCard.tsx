@@ -1,11 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Lightbulb } from 'lucide-react';
+import { Pencil, Lightbulb, Loader2 } from 'lucide-react';
 import { Questao } from '@/lib/types';
 import CanvasModal from './CanvasModal';
 
-export default function QuestaoCard({ questao, onResponder }: { questao: Questao; onResponder: (resposta: string, imagem?: string) => void }) {
+export default function QuestaoCard({
+  questao,
+  onResponder,
+  enviando = false,
+}: {
+  questao: Questao;
+  onResponder: (resposta: string, imagem?: string) => void;
+  enviando?: boolean;
+}) {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [digitada, setDigitada] = useState('');
   const [showCanvas, setShowCanvas] = useState(false);
@@ -14,6 +22,7 @@ export default function QuestaoCard({ questao, onResponder }: { questao: Questao
   const isMultipla = questao.tipo === 'multipla_escolha';
 
   const handleResponder = () => {
+    if (enviando) return;
     const resposta = isMultipla ? selecionada : digitada;
     if (resposta) onResponder(resposta);
   };
@@ -43,7 +52,8 @@ export default function QuestaoCard({ questao, onResponder }: { questao: Questao
             <button
               key={i}
               onClick={() => setSelecionada(opcao)}
-              className={`w-full text-left text-opcao p-4 rounded-xl border-2 transition-all ${
+              disabled={enviando}
+              className={`w-full text-left text-opcao p-4 rounded-xl border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 selecionada === opcao
                   ? 'border-primary bg-blue-50 text-primary font-bold'
                   : 'border-gray-200 hover:border-primary hover:bg-blue-50'
@@ -61,11 +71,13 @@ export default function QuestaoCard({ questao, onResponder }: { questao: Questao
             value={digitada}
             onChange={(e) => setDigitada(e.target.value)}
             placeholder="Digite sua resposta..."
-            className="w-full text-opcao p-4 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none"
+            disabled={enviando}
+            className="w-full text-opcao p-4 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={() => setShowCanvas(true)}
-            className="mt-3 flex items-center gap-2 text-primary font-semibold hover:text-blue-600"
+            disabled={enviando}
+            className="mt-3 flex items-center gap-2 text-primary font-semibold hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Pencil size={20} />
             Ou desenhe a fórmula
@@ -75,10 +87,11 @@ export default function QuestaoCard({ questao, onResponder }: { questao: Questao
 
       <button
         onClick={handleResponder}
-        disabled={!(isMultipla ? selecionada !== null : digitada.trim().length > 0)}
-        className="w-full bg-primary text-white text-xl font-bold py-4 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={enviando || !(isMultipla ? selecionada !== null : digitada.trim().length > 0)}
+        className="w-full flex items-center justify-center gap-2 bg-primary text-white text-xl font-bold py-4 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Responder
+        {enviando && <Loader2 size={22} className="animate-spin" />}
+        {enviando ? 'Enviando...' : 'Responder'}
       </button>
 
       {showCanvas && (
