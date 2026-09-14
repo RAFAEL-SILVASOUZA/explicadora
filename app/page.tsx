@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Pencil } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
+import RevisaoForm from '@/components/RevisaoForm';
 import { Sessao } from '@/lib/types';
 
 export default function Home() {
@@ -17,19 +18,17 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8">
-      <h1 className="text-5xl font-bold text-primary mb-4"><BookOpen size={48} className="inline mr-3" /> Estudo Divertido</h1>
-      <p className="text-xl text-gray-600 mb-8">Aprenda brincando com o professor virtual!</p>
+    <main className="min-h-screen flex flex-col items-center px-4 py-8 sm:p-8">
+      <h1 className="text-3xl sm:text-5xl text-center font-bold text-primary mb-4"><BookOpen size={40} className="inline mr-2" /> Estudo Divertido</h1>
+      <p className="text-lg sm:text-xl text-center text-gray-600 mb-8">Aprenda brincando com o professor virtual!</p>
 
-      <button
-        onClick={() => router.push('/revisao')}
-        className="bg-primary text-white text-2xl font-bold px-12 py-6 rounded-2xl hover:bg-blue-600 transition-colors shadow-lg mb-12"
-      >
-        <Pencil size={24} className="inline mr-2" /> Criar Revisão
-      </button>
+      <section className="w-full max-w-2xl mb-12" aria-labelledby="criar-revisao">
+        <h2 id="criar-revisao" className="text-2xl font-bold text-gray-700 mb-4">Criar revisão</h2>
+        <RevisaoForm />
+      </section>
 
       {sessoes.length > 0 && (
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-2xl">
           <h2 className="text-xl font-bold text-gray-700 mb-4">Revisões anteriores</h2>
           <div className="space-y-3">
             {sessoes.map((s) => (
