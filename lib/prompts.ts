@@ -32,12 +32,14 @@ DICA (campo obrigatório):
   - "Pense em 7 vezes 8, que dá 56" (fez a conta pelo aluno)
   - "É a cidade onde fica a Torre Eiffel" (só existe uma resposta possível para isso, então equivale a entregar a resposta)
 
+- Varie a POSIÇÃO da resposta correta dentro de "opcoes" de questão para questão (não deixe a resposta certa sempre na mesma posição, como sempre a primeira).
+
 Responda APENAS com um array JSON válido, sem markdown, sem texto extra. Formato:
 [
   {
     "tipo": "multipla_escolha",
     "enunciado": "Texto completo e autossuficiente da pergunta",
-    "opcoes": ["Opção A", "Opção B", "Opção C", "Opção D"],
+    "opcoes": ["Opção B", "Opção D", "Opção A", "Opção C"],
     "resposta_correta": "Opção A",
     "dica": "Explicação em português que ajuda a responder, sem revelar a resposta"
   },

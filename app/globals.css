@@ -3,5 +3,19 @@
 @tailwind utilities;
 
 body {
-  background-color: #FEF9E7;
+  background-color: #FDF6EC;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(124, 92, 252, 0.10) 0, transparent 22%),
+    radial-gradient(circle at 88% 12%, rgba(255, 138, 61, 0.12) 0, transparent 24%),
+    radial-gradient(circle at 78% 82%, rgba(46, 196, 182, 0.10) 0, transparent 26%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .btn-primary {
+    @apply w-full flex items-center justify-center gap-2 bg-primary text-white text-xl font-extrabold py-4 rounded-2xl shadow-card transition-all duration-200 hover:bg-primary-dark hover:shadow-card-hover hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-primary;
+  }
+  .card {
+    @apply bg-white rounded-3xl shadow-card p-8;
+  }
 }

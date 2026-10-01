@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pencil, Lightbulb, Loader2 } from 'lucide-react';
 import { Questao } from '@/lib/types';
 import CanvasModal from './CanvasModal';
+import MascoteCoruja from './MascoteCoruja';
 
 export default function QuestaoCard({
   questao,
@@ -33,15 +34,18 @@ export default function QuestaoCard({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8 max-w-2xl mx-auto">
-      <h2 className="text-enunciado font-bold text-gray-800 mb-4">{questao.enunciado}</h2>
+    <div className="card max-w-2xl mx-auto animate-pop-in">
+      <div className="flex items-center gap-3 mb-5">
+        <MascoteCoruja humor="pensando" className="w-14 h-14 shrink-0 animate-float" />
+        <h2 className="text-enunciado font-extrabold text-ink leading-snug">{questao.enunciado}</h2>
+      </div>
 
       {questao.dica && (
-        <div className="mb-6 flex items-start gap-3 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
-          <Lightbulb size={28} className="text-amber-500 shrink-0 mt-1" />
+        <div className="mb-6 flex items-start gap-3 bg-secondary-light border-2 border-secondary/30 rounded-2xl p-4">
+          <Lightbulb size={28} className="text-secondary shrink-0 mt-1" />
           <div>
-            <p className="font-bold text-amber-700 mb-1">Dica para te ajudar</p>
-            <p className="text-lg text-gray-700">{questao.dica}</p>
+            <p className="font-extrabold text-secondary mb-1">Dica para te ajudar</p>
+            <p className="text-lg text-ink/80">{questao.dica}</p>
           </div>
         </div>
       )}
@@ -53,10 +57,10 @@ export default function QuestaoCard({
               key={i}
               onClick={() => setSelecionada(opcao)}
               disabled={enviando}
-              className={`w-full text-left text-opcao p-4 rounded-xl border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full text-left text-opcao p-4 rounded-2xl border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 selecionada === opcao
-                  ? 'border-primary bg-blue-50 text-primary font-bold'
-                  : 'border-gray-200 hover:border-primary hover:bg-blue-50'
+                  ? 'border-primary bg-primary-light text-primary-dark font-extrabold shadow-card'
+                  : 'border-gray-200 hover:border-primary hover:bg-primary-light'
               }`}
             >
               <span className="font-bold mr-2">{String.fromCharCode(65 + i)})</span>
@@ -72,12 +76,12 @@ export default function QuestaoCard({
             onChange={(e) => setDigitada(e.target.value)}
             placeholder="Digite sua resposta..."
             disabled={enviando}
-            className="w-full text-opcao p-4 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full text-opcao p-4 rounded-2xl border-2 border-gray-200 focus:border-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={() => setShowCanvas(true)}
             disabled={enviando}
-            className="mt-3 flex items-center gap-2 text-primary font-semibold hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-3 flex items-center gap-2 text-primary font-bold hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Pencil size={20} />
             Ou desenhe a fórmula
@@ -88,7 +92,7 @@ export default function QuestaoCard({
       <button
         onClick={handleResponder}
         disabled={enviando || !(isMultipla ? selecionada !== null : digitada.trim().length > 0)}
-        className="w-full flex items-center justify-center gap-2 bg-primary text-white text-xl font-bold py-4 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-primary mt-2"
       >
         {enviando && <Loader2 size={22} className="animate-spin" />}
         {enviando ? 'Enviando...' : 'Responder'}
