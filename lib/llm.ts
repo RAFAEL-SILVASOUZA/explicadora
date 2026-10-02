@@ -1,7 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import { QuestaoLLM } from './types';
-import { PROMPT_GERAR_QUESTOES, PROMPT_AVALIAR_RESPOSTA, PROMPT_VEREDITO } from './prompts';
+import { PROMPT_GERAR_QUESTOES, PROMPT_AVALIAR_RESPOSTA, PROMPT_VEREDITO, PROMPT_GERAR_QUESTOES_FOCADAS, MODO_FOCO_NOS_ERROS, MODO_PROXIMO_NIVEL } from './prompts';
 
 export interface ImagemProcessada {
   base64: string;
@@ -19,8 +19,7 @@ const MAX_TENTATIVAS_LLM = 3;
 // o modelo devolve dados já validados contra o schema, sem parse JSON manual.
 const llm = new ChatOpenAI({
   model: LLM_MODEL,
-  apiKey: LLM_API_KEY,
-  configuration: { baseURL: LLM_BASE_URL },
+  apiKey: LLM_API_KEY
 });
 
 function esperar(ms: number): Promise<void> {
@@ -149,6 +148,54 @@ export async function gerarQuestoes(conteudoTexto: string, imagens: ImagemProces
     ultimoErro = new Error('LLM retornou lista vazia');
   }
   throw ultimoErro ?? new Error('Falha ao gerar questões');
+}
+
+export type ModoFocado = 'foco_nos_erros' | 'proximo_nivel';
+
+export async function gerarQuestoesFocadas(conteudoTexto: string, questoesErradas: QuestaoLLM[], modo: ModoFocado): Promise<QuestaoLLM[]> {
+  const modoTexto = modo === 'foco_nos_erros'
+    ? MODO_FOCO_NOS_ERROS.replace('{{QUESTOES_ERRADAS}}', questoesErradas.length > 0
+        ? questoesErradas.map((q, i) => `${i + 1}. ${q.enunciado} (resposta correta: ${q.resposta_correta})`).join('\n')
+        : 'Nenhuma questão errada.')
+    : MODO_PROXIMO_NIVEL;
+
+  const systemPrompt = PROMPT_GERAR_QUESTOES_FOCADAS
+    .replace('{{MODO}}', modoTexto)
+    .replace('{{CONTEUDO}}', conteudoTexto);
+
+  const llmQuestoes = llm.withStructuredOutput(GerarQuestoesSchema, {
+    name: 'gerar_questoes_focadas',
+  });
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: 'Gere as 10 questões agora.' },
+  ];
+
+  // Mesma lógica de retry do gerarQuestoes: falha na chamada ou dica que revela a resposta.
+  const MAX_TENTATIVAS = 3;
+  let ultimoErro: unknown;
+  for (let tentativa = 0; tentativa < MAX_TENTATIVAS; tentativa++) {
+    const { questoes } = await comRetry(() => llmQuestoes.invoke(messages as any));
+    if (Array.isArray(questoes) && questoes.length > 0) {
+      const comDica = questoes.map((q) => ({ ...q, dica: q.dica || '' }));
+      const algumaDicaVaza = comDica.some((q) => dicaRevelaResposta(q.dica, q.resposta_correta));
+
+      if (!algumaDicaVaza) return embaralharOpcoes(comDica);
+
+      if (tentativa < MAX_TENTATIVAS - 1) {
+        ultimoErro = new Error('Dica revelou a resposta');
+        continue;
+      }
+
+      const semDicaVazada = comDica.map((q) =>
+        dicaRevelaResposta(q.dica, q.resposta_correta) ? { ...q, dica: '' } : q
+      );
+      return embaralharOpcoes(semDicaVazada);
+    }
+    ultimoErro = new Error('LLM retornou lista vazia');
+  }
+  throw ultimoErro ?? new Error('Falha ao gerar questões focadas');
 }
 
 export async function avaliarResposta(questao: QuestaoLLM, respostaDada: string, imagem?: string): Promise<{ correto: boolean; explicacao: string }> {

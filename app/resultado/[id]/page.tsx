@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trophy, Dumbbell, MessageSquare, Frown } from 'lucide-react';
+import { Trophy, Dumbbell, MessageSquare, Frown, RotateCcw, Rocket, Sparkles } from 'lucide-react';
+import LoadingQuestoes from '@/components/LoadingQuestoes';
 
 interface Resultado {
   veredito: string;
@@ -16,6 +17,8 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const [processando, setProcessando] = useState<'reiniciar' | 'avancar' | null>(null);
+  const [erroAcao, setErroAcao] = useState('');
 
   useEffect(() => {
     fetch(`/api/revisao/${params.id}/finalizar`, { method: 'POST' })
@@ -49,14 +52,48 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     );
   }
 
+  const cemPorCento = resultado.percentual === 100;
   const preparado = resultado.percentual >= 70;
+  const textoAvancar = cemPorCento ? 'Próximo Nível! 🚀' : 'Desafio extra liberado!';
+
+  const handleReiniciar = async () => {
+    setProcessando('reiniciar');
+    setErroAcao('');
+    try {
+      const res = await fetch(`/api/revisao/${params.id}/reiniciar`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      router.push(`/estudar/${params.id}`);
+    } catch (err: any) {
+      setErroAcao(err.message);
+      setProcessando(null);
+    }
+  };
+
+  const handleAvancar = async () => {
+    setProcessando('avancar');
+    setErroAcao('');
+    try {
+      const res = await fetch(`/api/revisao/${params.id}/avancar`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      router.push(`/estudar/${params.id}`);
+    } catch (err: any) {
+      setErroAcao(err.message);
+      setProcessando(null);
+    }
+  };
+
+  if (processando === 'avancar') {
+    return <LoadingQuestoes />;
+  }
 
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-2xl mx-auto text-center">
         <div className="mb-6">{preparado ? <Trophy size={72} className="text-amber-500" /> : <Dumbbell size={72} className="text-blue-500" />}</div>
         <h1 className="text-4xl font-bold text-primary mb-4">
-          {preparado ? 'Você está preparado!' : 'Continue praticando!'}
+          {cemPorCento ? 'Incrível! Você acertou tudo!' : preparado ? 'Você está preparado!' : 'Continue praticando!'}
         </h1>
 
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
@@ -71,9 +108,35 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
           <p className="text-xl text-gray-700">{resultado.veredito}</p>
         </div>
 
+        {erroAcao && (
+          <div role="alert" className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-700 text-lg mb-4">
+            {erroAcao}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
+          <button
+            onClick={handleReiniciar}
+            disabled={processando !== null}
+            className="flex items-center justify-center gap-2 bg-white text-primary border-2 border-primary text-lg font-bold px-8 py-4 rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RotateCcw size={22} aria-hidden="true" />
+            {processando === 'reiniciar' ? 'Preparando...' : 'Segunda chance!'}
+          </button>
+
+          <button
+            onClick={handleAvancar}
+            disabled={processando !== null}
+            className="flex items-center justify-center gap-2 bg-primary text-white text-lg font-bold px-8 py-4 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {cemPorCento ? <Rocket size={22} aria-hidden="true" /> : <Sparkles size={22} aria-hidden="true" />}
+            {textoAvancar}
+          </button>
+        </div>
+
         <button
           onClick={() => router.push('/')}
-          className="bg-primary text-white text-xl font-bold px-12 py-4 rounded-xl hover:bg-blue-600 transition-colors"
+          className="text-gray-500 text-lg hover:text-gray-700 transition-colors"
         >
           Voltar ao Início
         </button>

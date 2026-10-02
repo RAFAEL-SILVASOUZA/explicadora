@@ -12,12 +12,24 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: 'Estudo Divertido',
   description: 'Sistema de estudo com LLM para crianças',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={nunito.variable}>
-      <body className="min-h-screen bg-bg font-sans text-ink">{children}</body>
+      <body className="min-h-screen bg-bg font-sans text-ink">
+        {children}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `
+        }} />
+      </body>
     </html>
   );
 }

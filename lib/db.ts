@@ -108,6 +108,22 @@ export function getSessaoComQuestoes(id: string): SessaoCompleta | null {
   };
 }
 
+export function createQuestoesApos(sessaoId: string, questoes: QuestaoInput[], ordemInicial: number): void {
+  const db = getDb();
+  const insert = db.prepare('INSERT INTO questoes (sessao_id, tipo, enunciado, opcoes_json, resposta_correta, dica, ordem) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  questoes.forEach((q, i) => {
+    insert.run(sessaoId, q.tipo, q.enunciado, JSON.stringify(q.opcoes), q.resposta_correta, q.dica || '', ordemInicial + i);
+  });
+}
+
+export function limparRespostas(sessaoId: string): void {
+  const db = getDb();
+  db.prepare(`
+    DELETE FROM respostas
+    WHERE questao_id IN (SELECT id FROM questoes WHERE sessao_id = ?)
+  `).run(sessaoId);
+}
+
 export function getScore(sessaoId: string): { acertos: number; total: number } {
   const db = getDb();
   const total = (db.prepare('SELECT COUNT(*) as c FROM questoes WHERE sessao_id = ?').get(sessaoId) as { c: number }).c;
