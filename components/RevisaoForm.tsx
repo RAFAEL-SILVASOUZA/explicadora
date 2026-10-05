@@ -22,7 +22,7 @@ export default function RevisaoForm() {
     setErro('');
 
     const formData = new FormData();
-    formData.append('texto', texto);
+    formData.append('texto', texto.trim());
     for (const file of arquivos) {
       formData.append('arquivos', file);
     }
@@ -101,7 +101,11 @@ export default function RevisaoForm() {
         </button>
         <p className="text-sm text-gray-500 mt-3">PNG, JPG, WEBP e PDF. Até {MAX_IMAGENS} imagens no total.</p>
         <p role="status" className="text-gray-700 mt-4 font-medium">
-          {arquivos.length ? `${arquivos.length} arquivo(s) adicionado(s)` : 'Nenhum arquivo adicionado ainda.'}
+          {arquivos.length === 0
+            ? 'Nenhum arquivo adicionado ainda.'
+            : arquivos.length === 1
+              ? '1 arquivo adicionado'
+              : `${arquivos.length} arquivos adicionados`}
         </p>
         {arquivos.length > 0 && (
           <ul className="mt-3 space-y-2" aria-label="Arquivos adicionados">
