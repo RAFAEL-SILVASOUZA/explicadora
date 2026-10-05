@@ -67,3 +67,32 @@ test('disponibiliza o formulário diretamente na tela principal', async () => {
   expect(screen.getByLabelText('Imagens e PDFs (opcional)')).toBeTruthy();
   expect(screen.getByRole('button', { name: /Gerar Questões/ })).toBeTruthy();
 });
+
+test('mostra a contagem de arquivos no singular e no plural ao adicionar e remover', async () => {
+  const user = userEvent.setup();
+  render(<RevisaoPage />);
+  const input = screen.getByLabelText('Imagens e PDFs (opcional)');
+  expect(screen.getByRole('status').textContent).toBe('Nenhum arquivo adicionado ainda.');
+  await user.upload(input, imagem('pagina-1.jpg'));
+  expect(screen.getByRole('status').textContent).toBe('1 arquivo adicionado');
+  await user.upload(input, imagem('pagina-2.jpg'));
+  expect(screen.getByRole('status').textContent).toBe('2 arquivos adicionados');
+  await user.click(screen.getByRole('button', { name: 'Remover pagina-1.jpg' }));
+  expect(screen.getByRole('status').textContent).toBe('1 arquivo adicionado');
+  await user.click(screen.getByRole('button', { name: 'Remover pagina-2.jpg' }));
+  expect(screen.getByRole('status').textContent).toBe('Nenhum arquivo adicionado ainda.');
+});
+
+test('remove espaços das bordas do texto sem alterar espaços internos ao enviar', async () => {
+  const user = userEvent.setup();
+  const requests: FormData[] = [];
+  vi.stubGlobal('fetch', async (_url: string, options: RequestInit) => {
+    requests.push(options.body as FormData);
+    return { ok: false, json: async () => ({ error: 'Tente novamente.' }) };
+  });
+  render(<RevisaoPage />);
+  await user.type(screen.getByLabelText('Conteúdo da revisão'), '  Sistema  solar  ');
+  await user.click(screen.getByRole('button', { name: /Gerar Questões/ }));
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0].get('texto')).toBe('Sistema  solar');
+});
