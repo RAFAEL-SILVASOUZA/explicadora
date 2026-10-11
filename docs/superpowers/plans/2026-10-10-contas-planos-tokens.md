@@ -24,7 +24,7 @@
 - `quantidade` in `movimentos_saldo` is a signed delta: `+3` at registration, `+20`/`+50` at redemption, `-1` at consumption.
 - The consumption transaction holds the row lock across the LLM call. Accepted because the lock is per account and the LLM call is the work being paid for.
 - Existing tests in `components/RevisaoForm.test.tsx` must keep passing.
-- Vitest: existing tests keep `environment: 'jsdom'`; DB tests use `// @vitest-environment node` at the top of the file.
+- Vitest: existing tests keep `environment: 'jsdom'` (the default in `vitest.config.ts`); every test that touches `next/server` or Postgres uses `// @vitest-environment node` at the top of the file. `test/unit/api.test.ts` stays jsdom because it needs `localStorage`.
 - Every command runs from the repo root. PowerShell syntax on Windows.
 
 ---
@@ -787,10 +787,11 @@ git commit -m "feat: repositório de contas com saldo inicial e conta admin seme
 
 - [ ] **Step 1: Write the failing test**
 
-`test/unit/jwt.test.ts`:
+`test/unit/jwt.test.ts` (node environment, because `next/server` does not work in jsdom):
 
 ```ts
-import { expect, test, vi } from 'vitest';
+// @vitest-environment node
+import { expect, test } from 'vitest';
 import { NextRequest } from 'next/server';
 import { assinarToken, verificarToken } from '../../lib/auth/jwt';
 import { autenticar } from '../../lib/auth/guard';
@@ -2072,6 +2073,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server';
+import { autenticar, naoAutorizado } from '@/lib/auth/guard';
+import { getPool } from '@/lib/db/pool';
 import { autenticar, naoAutorizado } from '@/lib/auth/guard';
 import { getRevisao, getQuestoes, getRespostas, createQuestoes } from '@/lib/repos/revisoes';
 import { gerarQuestoesFocadas, ModoFocado } from '@/lib/llm';
