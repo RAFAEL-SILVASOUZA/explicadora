@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { getPool } from '../db/pool';
 
 export interface TokenView {
@@ -32,10 +33,15 @@ const colunas = (prefixo?: string): string => {
 // Alfabeto sem caracteres ambíguos (0/O, 1/I) para a pessoa conseguir digitar o código.
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+// Ruling SS: o código do token é o único controle de acesso de um resgate de valor real,
+// então vem de um CSPRNG, não de Math.random(). O alfabeto tem 32 caracteres, e 256 é
+// múltiplo de 32, então `b % 32` é exatamente uniforme, sem viés. Sem retry de colisão:
+// o espaço é 32^8 (1 em um trilhão) e um caminho de retry não seria testável.
 export function codigoDeToken(planoCodigo: string): string {
-  const parte = () =>
-    Array.from({ length: 4 }, () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]).join('');
-  return `${planoCodigo.toUpperCase()}-${parte()}-${parte()}`;
+  const bytes = randomBytes(8);
+  const parte = (base: number): string =>
+    Array.from({ length: 4 }, (_, i) => ALFABETO[bytes[base + i] % ALFABETO.length]).join('');
+  return `${planoCodigo.toUpperCase()}-${parte(0)}-${parte(4)}`;
 }
 
 export async function gerarLote(
