@@ -13,3 +13,4 @@ docs
 .env.local
 .env.*.local
 npm-debug.log*
+.agent-platform/
