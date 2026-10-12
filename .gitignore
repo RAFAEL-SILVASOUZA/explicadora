@@ -47,3 +47,6 @@ Thumbs.db
 *.swp
 *.swo
 .agent-platform/
+
+# banco local (Ruling VV): sem esta linha um estudo.db vivo ficava commitável
+data/
