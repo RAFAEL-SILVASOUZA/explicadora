@@ -1,14 +1,12 @@
 // @vitest-environment node
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
-import { pool, prepararBanco, limparTabelas, semearPlanos } from './helper';
+import { pool, prepararBanco, limparTabelas } from './helper';
 import { createConta } from '../../lib/repos/contas';
 import { hashSenha } from '../../lib/auth/senha';
 import { gerarLote, resgateToken, listarTokens, codigoDeToken } from '../../lib/repos/tokens';
 
 beforeAll(async () => { await prepararBanco(); });
-// limparTabelas() truncate planos junto com as demais, então o fixture de planos é
-// re-semeado por este arquivo depois de cada teste: ele não depende do que outro arquivo semeou.
-afterEach(async () => { await limparTabelas(); await semearPlanos(); });
+afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
 
 const admin = () => createConta('admin@example.com', 'hash', 0);

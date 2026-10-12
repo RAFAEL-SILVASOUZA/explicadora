@@ -33,9 +33,13 @@ export async function semearPlanos(): Promise<void> {
 export async function prepararBanco(): Promise<void> {
   await aplicarMigracoes(pool);
   await limparTabelas();
-  await semearPlanos();
 }
 
+// planos é fixture permanente do banco de teste, não dado de teste: ele é re-semeado
+// junto do TRUNCATE, para que o baseline documentado acima valha em todo teste e não
+// só no primeiro de cada arquivo. Assim nenhum arquivo de teste precisa lembrar de
+// semear planos no próprio afterEach.
 export async function limparTabelas(): Promise<void> {
   await pool.query(`TRUNCATE ${TABELAS.join(', ')} RESTART IDENTITY CASCADE`);
+  await semearPlanos();
 }
