@@ -3,25 +3,11 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { createConta } from '../../lib/repos/contas';
 import { consumirSaldo } from '../../lib/quota';
+import { comTransacao } from '../../lib/repos/transacao';
 
 beforeAll(async () => { await prepararBanco(); });
 afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
-
-async function comTransacao<T>(fn: (client: import('pg').PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const r = await fn(client);
-    await client.query('COMMIT');
-    return r;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
 
 test('consumirSaldo decrementa e registra o movimento', async () => {
   const conta = await createConta('ana@example.com', 'hash', 3);
@@ -31,9 +17,14 @@ test('consumirSaldo decrementa e registra o movimento', async () => {
   expect(rows).toEqual([{ tipo: 'consumo', quantidade: -1 }]);
 });
 
-test('consumirSaldo devolve null com saldo 0', async () => {
+// Ruling XX: o teste anterior só afirmava o null, então um gasto duplo que deixasse o
+// saldo em 0 com duas linhas de movimento passava. Aqui a ausência da linha é o que
+// discrimina: consumirSaldo não escreve nada quando não decrementa.
+test('consumirSaldo devolve null com saldo 0 e não insere movimento', async () => {
   const conta = await createConta('ana@example.com', 'hash', 0);
   expect(await comTransacao((c) => consumirSaldo(c, conta.id))).toBeNull();
+  const { rows } = await pool.query('SELECT id FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
+  expect(rows).toHaveLength(0);
 });
 
 test('dois consumos simultâneos na mesma conta não gastam a mesma revisão', async () => {

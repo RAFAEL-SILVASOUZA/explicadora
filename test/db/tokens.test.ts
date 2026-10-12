@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { createConta } from '../../lib/repos/contas';
 import { hashSenha } from '../../lib/auth/senha';
-import { gerarLote, resgateToken, listarTokens, codigoDeToken } from '../../lib/repos/tokens';
+import { gerarLote, resgateToken, listarTokens, codigoDeToken, planoExiste } from '../../lib/repos/tokens';
 
 beforeAll(async () => { await prepararBanco(); });
 afterEach(async () => { await limparTabelas(); });
@@ -22,6 +22,17 @@ test('gerarLote cria N tokens do plano pedido', async () => {
 
 test('código de token tem o formato PLANO-XXXX-XXXX', () => {
   expect(codigoDeToken('familia')).toMatch(/^FAMILIA-[0-9A-Z]{4}-[0-9A-Z]{4}$/);
+});
+
+// Ruling GG: `planos` é tabela de referência, não enum no código. Este teste é o que
+// discrimina a consulta à tabela: um plano inserido aqui é aceito, e um plano que não
+// está na tabela não é. Sem `planoExiste`, o plano novo seria rejeitado por um enum.
+test('planoExiste aceita um plano inserido na tabela', async () => {
+  await pool.query(
+    `INSERT INTO planos (codigo, nome, revisoes, preco_cents) VALUES ('elite', 'Elite', 100, 3000)`
+  );
+  expect(await planoExiste('elite')).toBe(true);
+  expect(await planoExiste('inexistente')).toBe(false);
 });
 
 test('resgate soma as revisões do plano ao saldo', async () => {

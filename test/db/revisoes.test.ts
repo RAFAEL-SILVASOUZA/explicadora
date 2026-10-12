@@ -53,8 +53,6 @@ test('id de questão vem como number, não como string (parser de int8)', async 
   const [q] = (await getRevisaoCompleta(id, c.id))!.questoes;
   // A coluna é bigint GENERATED ALWAYS AS IDENTITY: sem parser de int8, o pg devolve string.
   expect(typeof q.id).toBe('number');
-  // Comparação que as rotas da Task 9 fazem (`q.id === questaoId`, questaoId: number).
-  expect(q.id === Number(q.id)).toBe(true);
   // createResposta recebe o valor que o repositório devolveu, sem conversão.
   await createResposta(q.id, '42', true, 'ok');
   const [r] = (await getRevisaoCompleta(id, c.id))!.respostas;
