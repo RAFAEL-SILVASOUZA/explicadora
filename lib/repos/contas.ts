@@ -1,6 +1,6 @@
 import { PoolClient } from 'pg';
 import { getPool } from '../db/pool';
-import { Conta } from '../types';
+import { Conta, Role } from '../types';
 
 export async function createConta(
   email: string, senhaHash: string, saldo: number, client?: PoolClient,
@@ -24,7 +24,9 @@ export async function findContaByEmail(email: string): Promise<Conta | null> {
   return (rows[0] as Conta) ?? null;
 }
 
-export function contaPublica(c: Conta) {
+export function contaPublica(c: Conta): {
+  id: string; email: string; role: Role; saldo_revisoes: number; criado_em: string;
+} {
   return { id: c.id, email: c.email, role: c.role, saldo_revisoes: c.saldo_revisoes, criado_em: c.criado_em };
 }
 

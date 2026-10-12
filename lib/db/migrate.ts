@@ -37,7 +37,11 @@ export async function aplicarMigracoes(pool?: Pool): Promise<void> {
 
 if (process.argv[1] && process.argv[1].endsWith('migrate.ts')) {
   aplicarMigracoes()
-    .then(semearAdmin)
+    .then(async () => {
+      const criada = await semearAdmin();
+      if (!criada) console.warn('ADMIN_EMAIL/ADMIN_SENHA não definidos: conta admin não criada.');
+      else console.log(`Conta admin criada: ${process.env.ADMIN_EMAIL}`);
+    })
     .then(() => process.exit(0))
     .catch((err) => { console.error(err.message); process.exit(1); });
 }
