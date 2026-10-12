@@ -12,7 +12,14 @@ export async function comTransacao<T>(fn: (client: PoolClient) => Promise<T>): P
     await client.query('COMMIT');
     return resultado;
   } catch (err) {
-    await client.query('ROLLBACK');
+    // Ruling TT: um ROLLBACK que lança substituiria o erro original, e o chamador perderia
+    // a checagem de 23505 (um 409 viraria 500). O erro do rollback é engolido de propósito:
+    // o erro que motivou o rollback é o que a rota precisa ver.
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // sem efeito: o erro de rollback não substitui o erro original.
+    }
     throw err;
   } finally {
     client.release();
