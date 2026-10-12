@@ -30,10 +30,14 @@ export async function vincularMovimentoARevisao(
   );
 }
 
+// O join com tokens traz plano_codigo, que movimentos_saldo não guarda: é o que
+// permite a rota /api/conta mostrar o plano do último resgate.
 export function extratoConta(contaId: string) {
   return getPool().query(
-    `SELECT tipo, quantidade, token_id, revisao_id, criado_em
-     FROM movimentos_saldo WHERE conta_id = $1 ORDER BY criado_em DESC`,
+    `SELECT m.tipo, m.quantidade, m.token_id, m.revisao_id, t.plano_codigo, m.criado_em
+     FROM movimentos_saldo m
+     LEFT JOIN tokens t ON t.id = m.token_id
+     WHERE m.conta_id = $1 ORDER BY m.criado_em DESC`,
     [contaId],
   );
 }
