@@ -19,7 +19,7 @@ export default function QuestaoCard({
   const [digitada, setDigitada] = useState('');
   const [showCanvas, setShowCanvas] = useState(false);
 
-  const opcoes = JSON.parse(questao.opcoes_json) as string[];
+  const opcoes = questao.opcoes;
   const isMultipla = questao.tipo === 'multipla_escolha';
 
   const handleResponder = () => {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FileText, Plus, Rocket, Trash2 } from 'lucide-react';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
 import { MAX_IMAGENS } from '@/lib/constantes';
+import { apiFetch } from '@/lib/client/api';
 
 export default function RevisaoForm() {
   const router = useRouter();
@@ -28,7 +29,11 @@ export default function RevisaoForm() {
     }
 
     try {
-      const res = await fetch('/api/revisao', { method: 'POST', body: formData });
+      const res = await apiFetch('/api/revisao', { method: 'POST', body: formData });
+      if (res.status === 402) {
+        setErro((await res.json()).error);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       router.push(`/estudar/${data.id}`);

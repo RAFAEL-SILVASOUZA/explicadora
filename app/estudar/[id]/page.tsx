@@ -7,6 +7,7 @@ import ProgressoBarra from '@/components/ProgressoBarra';
 import QuestaoCard from '@/components/QuestaoCard';
 import FeedbackResposta from '@/components/FeedbackResposta';
 import { Questao, Resposta } from '@/lib/types';
+import { apiFetch } from '@/lib/client/api';
 
 export default function EstudarPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
   const [erro, setErro] = useState('');
 
   useEffect(() => {
-    fetch(`/api/revisao/${params.id}`)
+    apiFetch(`/api/revisao/${params.id}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
@@ -38,7 +39,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
   const handleResponder = async (resposta: string, imagem?: string) => {
     setCarregando(true);
     try {
-      const res = await fetch(`/api/revisao/${params.id}/responder`, {
+      const res = await apiFetch(`/api/revisao/${params.id}/responder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questaoId: questoes[indiceAtual].id, resposta, ...(imagem && { imagem }) }),

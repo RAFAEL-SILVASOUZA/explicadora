@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trophy, Dumbbell, MessageSquare, Frown, RotateCcw, Rocket, Sparkles } from 'lucide-react';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
+import { apiFetch } from '@/lib/client/api';
 
 interface Resultado {
   veredito: string;
@@ -21,7 +22,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
   const [erroAcao, setErroAcao] = useState('');
 
   useEffect(() => {
-    fetch(`/api/revisao/${params.id}/finalizar`, { method: 'POST' })
+    apiFetch(`/api/revisao/${params.id}/finalizar`, { method: 'POST' })
       .then(r => r.json())
       .then(setResultado)
       .catch(err => setErro(err.message))
@@ -60,7 +61,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     setProcessando('reiniciar');
     setErroAcao('');
     try {
-      const res = await fetch(`/api/revisao/${params.id}/reiniciar`, { method: 'POST' });
+      const res = await apiFetch(`/api/revisao/${params.id}/reiniciar`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       router.push(`/estudar/${params.id}`);
@@ -74,7 +75,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     setProcessando('avancar');
     setErroAcao('');
     try {
-      const res = await fetch(`/api/revisao/${params.id}/avancar`, { method: 'POST' });
+      const res = await apiFetch(`/api/revisao/${params.id}/avancar`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       router.push(`/estudar/${params.id}`);

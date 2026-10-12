@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen } from 'lucide-react';
 import RevisaoForm from '@/components/RevisaoForm';
-import { Sessao } from '@/lib/types';
+import { apiFetch } from '@/lib/client/api';
+import { Revisao } from '@/lib/types';
 
 export default function Home() {
   const router = useRouter();
-  const [sessoes, setSessoes] = useState<Sessao[]>([]);
+  const [sessoes, setSessoes] = useState<Revisao[]>([]);
 
   useEffect(() => {
-    fetch('/api/sessoes')
+    apiFetch('/api/sessoes')
       .then(r => r.json())
       .then(setSessoes)
       .catch(() => {});
@@ -38,7 +39,7 @@ export default function Home() {
                 className="w-full text-left bg-white p-4 rounded-xl shadow hover:shadow-md transition-shadow"
               >
                 <p className="font-semibold text-gray-800 truncate">{s.conteudo_texto.slice(0, 60)}...</p>
-                <p className="text-sm text-gray-500">{new Date(s.criada_em).toLocaleDateString('pt-BR')}</p>
+                <p className="text-sm text-gray-500">{new Date(s.criado_em).toLocaleDateString('pt-BR')}</p>
               </button>
             ))}
           </div>
