@@ -17,6 +17,19 @@ export async function registrarMovimento(
   );
 }
 
+// Liga o movimento de consumo recém-criado à revisão que o gerou. O movimento é
+// inserido por consumirSaldo sem revisao_id; o vínculo acontece depois que a
+// revisão existe.
+export async function vincularMovimentoARevisao(
+  client: PoolClient, contaId: string, revisaoId: string,
+): Promise<void> {
+  await client.query(
+    `UPDATE movimentos_saldo SET revisao_id = $1
+     WHERE conta_id = $2 AND tipo = $3 AND revisao_id IS NULL`,
+    [revisaoId, contaId, 'consumo'],
+  );
+}
+
 export function extratoConta(contaId: string) {
   return getPool().query(
     `SELECT tipo, quantidade, token_id, revisao_id, criado_em

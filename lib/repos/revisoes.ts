@@ -31,6 +31,7 @@ export async function listarRevisoes(contaId: string): Promise<Revisao[]> {
   return rows as Revisao[];
 }
 
+// Ruling O: sem contaId; só pode ser chamada depois que a revisão foi resolvida por conta.
 export async function getQuestoes(revisaoId: string): Promise<Questao[]> {
   const { rows } = await getPool().query(
     `SELECT id, revisao_id, tipo, enunciado, opcoes, resposta_correta, dica, ordem
@@ -40,6 +41,7 @@ export async function getQuestoes(revisaoId: string): Promise<Questao[]> {
   return rows as Questao[];
 }
 
+// Ruling O: sem contaId; só pode ser chamada depois que a revisão foi resolvida por conta.
 export async function getRespostas(revisaoId: string): Promise<Resposta[]> {
   const { rows } = await getPool().query(
     `SELECT r.id, r.questao_id, r.resposta_dada, r.correto, r.explicacao, r.respondida_em
@@ -71,6 +73,7 @@ export async function createQuestoes(
   }
 }
 
+// Ruling O: sem contaId; só pode ser chamada depois que a revisão foi resolvida por conta.
 export async function createResposta(
   questaoId: number, respostaDada: string, correto: boolean, explicacao: string,
 ): Promise<void> {
@@ -80,6 +83,7 @@ export async function createResposta(
   );
 }
 
+// Ruling O: sem contaId; só pode ser chamada depois que a revisão foi resolvida por conta.
 export async function getScore(revisaoId: string): Promise<{ acertos: number; total: number }> {
   const { rows } = await getPool().query(
     `SELECT COUNT(*)::int AS total FROM questoes WHERE revisao_id = $1`,
@@ -95,6 +99,7 @@ export async function getScore(revisaoId: string): Promise<{ acertos: number; to
   return { acertos: acertosRow.rows[0].acertos as number, total };
 }
 
+// Ruling O: sem contaId; só pode ser chamada depois que a revisão foi resolvida por conta.
 export async function limparRespostas(revisaoId: string): Promise<void> {
   await getPool().query(
     `DELETE FROM respostas WHERE questao_id IN (SELECT id FROM questoes WHERE revisao_id = $1)`,
