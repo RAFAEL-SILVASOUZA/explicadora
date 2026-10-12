@@ -51,6 +51,13 @@ test('quantidade inválida responde 400', async () => {
   expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'inexistente', quantidade: 1 }))).status).toBe(400);
 });
 
+// Ruling HH: `expira_em_dias` entra na restrição global de 400 para input inválido.
+// Antes do fix, 0 caía no `|| EXPIRACAO_PADRAO_DIAS` e virava um token de 30 dias (201).
+test('expira_em_dias inválido responde 400', async () => {
+  const admin = await createConta('admin@example.com', 'hash', 0);
+  expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1, expira_em_dias: 0 }))).status).toBe(400);
+});
+
 test('listar mostra status derivado e quem resgatou', async () => {
   const admin = await createConta('admin@example.com', 'hash', 0);
   await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 2 }));

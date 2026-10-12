@@ -104,6 +104,13 @@ export async function resgateToken(codigo: string, contaId: string): Promise<Res
   }
 }
 
+// Ruling GG: `planos` é tabela de referência, não enum no código (spec linha 76).
+// O SQL da consulta fica no repositório (Ruling Q); a rota só chama esta função.
+export async function planoExiste(codigo: string): Promise<boolean> {
+  const { rows } = await getPool().query('SELECT 1 FROM planos WHERE codigo = $1', [codigo]);
+  return rows.length > 0;
+}
+
 export async function listarTokens(): Promise<TokenView[]> {
   const { rows } = await getPool().query(`SELECT ${colunas()} FROM tokens ORDER BY criado_em DESC`);
   return rows as TokenView[];
