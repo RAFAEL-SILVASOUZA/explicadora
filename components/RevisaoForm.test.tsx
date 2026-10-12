@@ -83,6 +83,22 @@ test('mostra a contagem de arquivos no singular e no plural ao adicionar e remov
   expect(screen.getByRole('status').textContent).toBe('Nenhum arquivo adicionado ainda.');
 });
 
+test('mostra o aviso de saldo esgotado (402) em vez do spinner após o envio', async () => {
+  const user = userEvent.setup();
+  const mensagem = 'Você usou suas revisões. Resgate um token para continuar.';
+  vi.stubGlobal('fetch', async () => ({
+    ok: false,
+    status: 402,
+    json: async () => ({ error: mensagem }),
+  }));
+  render(<RevisaoPage />);
+  await user.type(screen.getByLabelText('Conteúdo da revisão'), 'Sistema solar');
+  await user.click(screen.getByRole('button', { name: /Gerar Questões/ }));
+  const alerta = await screen.findByRole('alert');
+  expect(alerta.textContent).toBe(mensagem);
+  expect(screen.queryByText('O professor está preparando as questões...')).toBeNull();
+});
+
 test('remove espaços das bordas do texto sem alterar espaços internos ao enviar', async () => {
   const user = userEvent.setup();
   const requests: FormData[] = [];

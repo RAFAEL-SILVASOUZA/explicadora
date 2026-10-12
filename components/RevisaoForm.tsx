@@ -32,6 +32,7 @@ export default function RevisaoForm() {
       const res = await apiFetch('/api/revisao', { method: 'POST', body: formData });
       if (res.status === 402) {
         setErro((await res.json()).error);
+        setCarregando(false);
         return;
       }
       const data = await res.json();
