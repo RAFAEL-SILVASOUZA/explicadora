@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import RevisaoPage from '@/app/revisao/page';
 import Home from '@/app/page';
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// `replace` entrou no mock porque o guard de app/page.tsx chama router.replace('/login').
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 const imagem = (name: string) => new File(['imagem'], name, { type: 'image/jpeg' });

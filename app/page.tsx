@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen } from 'lucide-react';
 import RevisaoForm from '@/components/RevisaoForm';
-import { apiFetch } from '@/lib/client/api';
+import { apiFetch, lerToken } from '@/lib/client/api';
 import { Revisao } from '@/lib/types';
 
 export default function Home() {
   const router = useRouter();
   const [sessoes, setSessoes] = useState<Revisao[]>([]);
+
+  useEffect(() => { if (!lerToken()) router.replace('/login'); }, [router]);
 
   useEffect(() => {
     apiFetch('/api/sessoes')
