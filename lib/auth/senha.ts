@@ -35,10 +35,20 @@ export async function hashSenha(senha: string): Promise<string> {
 export async function verificarSenha(senha: string, armazenado: string): Promise<boolean> {
   const partes = armazenado.split('$');
   if (partes.length !== 6 || partes[0] !== 'scrypt') return false;
-  const [, n, r, p, hashBase64, salBase64] = partes;
+  const [, campoN, campoR, campoP, hashBase64, salBase64] = partes;
+  // Parâmetros vêm do banco: um valor inválido não pode virar exceção (500).
+  const n = Number(campoN);
+  const r = Number(campoR);
+  const p = Number(campoP);
+  if (!Number.isInteger(n) || n <= 1) return false;
+  if (!Number.isInteger(r) || r <= 0) return false;
+  if (!Number.isInteger(p) || p <= 0) return false;
   const real = Buffer.from(hashBase64, 'base64');
-  const esperado = await scryptAsync(senha, Buffer.from(salBase64, 'base64'), real.length, {
-    N: Number(n), r: Number(r), p: Number(p), maxmem: MAXMEM,
+  // keylen fixo: sem isso, um campo de hash vazio deriva 0 bytes e
+  // timingSafeEqual(empty, empty) aceitaria qualquer senha.
+  if (real.length !== TAMANHO_HASH) return false;
+  const esperado = await scryptAsync(senha, Buffer.from(salBase64, 'base64'), TAMANHO_HASH, {
+    N: n, r, p, maxmem: MAXMEM,
   });
-  return esperado.length === real.length && timingSafeEqual(esperado, real);
+  return timingSafeEqual(esperado, real);
 }

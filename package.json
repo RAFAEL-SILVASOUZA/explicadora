@@ -5,6 +5,7 @@
   "scripts": {
     "migrate": "tsx lib/db/migrate.ts",
     "test": "vitest run test/unit components",
+    "test:unit": "vitest run test/unit",
     "test:db": "vitest run test/db",
     "test:llm": "vitest run lib/llm.test.ts",
     "dev": "next dev",
