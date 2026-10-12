@@ -1,10 +1,12 @@
 // @vitest-environment node
 import { expect, test } from 'vitest';
+import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
 import { assinarToken, verificarToken } from '../../lib/auth/jwt';
 import { autenticar } from '../../lib/auth/guard';
 
-process.env.JWT_SECRET = 'segredo-de-teste-com-pelo-menos-32-caracteres';
+const SEGREDO = 'segredo-de-teste-com-pelo-menos-32-caracteres';
+process.env.JWT_SECRET = SEGREDO;
 
 test('token assinado é aceito e carrega sub e role', () => {
   const token = assinarToken('conta-1', 'admin');
@@ -25,6 +27,16 @@ test('token assinado com outro segredo é recusado', () => {
 
 test('token expirado é recusado', () => {
   const token = assinarToken('conta-1', 'user', -10);
+  expect(verificarToken(token)).toBeNull();
+});
+
+test('token válido sem claim sub é recusado', () => {
+  const token = jwt.sign({ role: 'user' }, SEGREDO, { expiresIn: 3600 });
+  expect(verificarToken(token)).toBeNull();
+});
+
+test('token válido com role inesperado é recusado', () => {
+  const token = jwt.sign({ sub: 'conta-1', role: 'superadmin' }, SEGREDO, { expiresIn: 3600 });
   expect(verificarToken(token)).toBeNull();
 });
 

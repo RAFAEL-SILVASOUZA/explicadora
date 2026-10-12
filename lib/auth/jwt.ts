@@ -16,7 +16,9 @@ export function assinarToken(contaId: string, role: Role, expiraEm?: number): st
 export function verificarToken(token: string): { sub: string; role: Role } | null {
   try {
     const payload = jwt.verify(token, segredo()) as jwt.JwtPayload;
-    return { sub: String(payload.sub), role: payload.role as Role };
+    if (!payload.sub) return null;
+    if (payload.role !== 'user' && payload.role !== 'admin') return null;
+    return { sub: String(payload.sub), role: payload.role };
   } catch {
     return null;
   }
