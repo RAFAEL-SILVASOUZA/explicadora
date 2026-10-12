@@ -6,7 +6,7 @@
     "migrate": "tsx lib/db/migrate.ts",
     "test": "vitest run test/unit components",
     "test:unit": "vitest run test/unit",
-    "test:db": "vitest run test/db",
+    "test:db": "vitest run test/db --no-file-parallelism",
     "test:llm": "vitest run lib/llm.test.ts",
     "dev": "next dev",
     "build": "next build",
