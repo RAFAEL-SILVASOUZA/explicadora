@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/client/api';
+import { Revisao } from '@/lib/types';
 
 interface Movimento { tipo: string; quantidade: number; plano_codigo: string | null; criado_em: string }
 
@@ -13,6 +14,7 @@ interface DadosConta {
 
 export default function Conta() {
   const [dados, setDados] = useState<DadosConta | null>(null);
+  const [revisoes, setRevisoes] = useState<Revisao[]>([]);
   const [codigo, setCodigo] = useState('');
   const [erro, setErro] = useState('');
 
@@ -20,6 +22,12 @@ export default function Conta() {
     const res = await apiFetch('/api/conta');
     if (!res.ok) return;
     setDados(await res.json());
+    // Ruling WW: a spec (design.md:60) pede o histórico de revisões em /conta, que a
+    // página não tinha. A rota de listagem já existe (GET /api/sessoes, que chama
+    // listarRevisoes): nenhuma rota nova, nenhum SQL novo, o guard continua na rota.
+    const lista = await apiFetch('/api/sessoes');
+    if (!lista.ok) return;
+    setRevisoes(await lista.json());
   }
 
   useEffect(() => { carregar(); }, []);
@@ -34,7 +42,7 @@ export default function Conta() {
     // Desvio do brief: o brief conservava `movimentos: d.movimentos`, então o extrato
     // não mostrava o novo movimento até recarregar a página. A resposta do resgate não
     // traz `criado_em` nem `plano_codigo` do movimento, então reler /api/conta é o que
-    // deixa plano, saldo e extrato coerentes.
+    // deixa plano, saldo e extrato coerentes. O mesmo carregar() atualiza o histórico.
     await carregar();
   }
 
@@ -60,6 +68,22 @@ export default function Conta() {
           ))}
         </tbody>
       </table>
+
+      {revisoes.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold mb-4">Histórico de revisões</h2>
+          <ul className="space-y-2">
+            {revisoes.map((r) => (
+              <li key={r.id}>
+                <a href={`/estudar/${r.id}`} className="block bg-white p-4 rounded-xl shadow hover:shadow-md">
+                  <p className="font-semibold truncate">{r.titulo ?? r.conteudo_texto.slice(0, 60)}...</p>
+                  <p className="text-sm text-gray-500">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</p>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
