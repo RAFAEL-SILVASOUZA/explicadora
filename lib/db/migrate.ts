@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Pool } from 'pg';
 import { getPool } from './pool';
+import { semearAdmin } from './seed-admin';
 
 const DIR = path.join(process.cwd(), 'migrations');
 
@@ -36,6 +37,7 @@ export async function aplicarMigracoes(pool?: Pool): Promise<void> {
 
 if (process.argv[1] && process.argv[1].endsWith('migrate.ts')) {
   aplicarMigracoes()
+    .then(semearAdmin)
     .then(() => process.exit(0))
     .catch((err) => { console.error(err.message); process.exit(1); });
 }

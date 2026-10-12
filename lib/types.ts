@@ -1,3 +1,21 @@
+export type Role = 'user' | 'admin';
+
+export interface Conta {
+  id: string;
+  email: string;
+  role: Role;
+  saldo_revisoes: number;
+  criado_em: string;
+  senha_hash?: string; // presente apenas na leitura interna, nunca devolvido pela API
+}
+
+export interface Plano {
+  codigo: string;
+  nome: string;
+  revisoes: number;
+  preco_cents: number;
+}
+
 export interface QuestaoLLM {
   tipo: 'multipla_escolha' | 'resposta_digitada';
   enunciado: string;
