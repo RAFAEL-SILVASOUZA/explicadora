@@ -26,10 +26,10 @@ export interface QuestaoLLM {
 
 export interface Questao {
   id: number;
-  sessao_id: string;
+  revisao_id: string;
   tipo: string;
   enunciado: string;
-  opcoes_json: string;
+  opcoes: string[];
   resposta_correta: string;
   dica: string;
   ordem: number;
@@ -39,19 +39,21 @@ export interface Resposta {
   id: number;
   questao_id: number;
   resposta_dada: string;
-  correto: number;
+  correto: boolean;
   explicacao: string;
   respondida_em: string;
 }
 
-export interface Sessao {
+export interface Revisao {
   id: string;
+  conta_id: string;
+  titulo: string | null;
   conteudo_texto: string;
-  criada_em: string;
+  criado_em: string;
 }
 
-export interface SessaoCompleta {
-  sessao: Sessao;
+export interface RevisaoCompleta {
+  revisao: Revisao;
   questoes: Questao[];
   respostas: Resposta[];
 }
