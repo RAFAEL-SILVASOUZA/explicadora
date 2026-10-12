@@ -15,7 +15,9 @@ export function assinarToken(contaId: string, role: Role, expiraEm?: number): st
 
 export function verificarToken(token: string): { sub: string; role: Role } | null {
   try {
-    const payload = jwt.verify(token, segredo()) as jwt.JwtPayload;
+    // Ruling UU: o algoritmo é fixado em HS256 (spec linha 33). Sem o pin, um token HS512
+    // assinado com o mesmo segredo seria aceito.
+    const payload = jwt.verify(token, segredo(), { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (!payload.sub) return null;
     if (payload.role !== 'user' && payload.role !== 'admin') return null;
     return { sub: String(payload.sub), role: payload.role };

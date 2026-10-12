@@ -40,6 +40,13 @@ test('token válido com role inesperado é recusado', () => {
   expect(verificarToken(token)).toBeNull();
 });
 
+// Ruling UU: o algoritmo é fixado em HS256. Um HS512 assinado com o mesmo segredo é
+// recusado; sem `{ algorithms: ['HS256'] }` este teste falha.
+test('token HS512 com o mesmo segredo é recusado', () => {
+  const token = jwt.sign({ sub: 'conta-1', role: 'user' }, SEGREDO, { algorithm: 'HS512', expiresIn: 3600 });
+  expect(verificarToken(token)).toBeNull();
+});
+
 test('autenticar lê o header Bearer', async () => {
   const token = assinarToken('conta-2', 'user');
   const req = new NextRequest('http://localhost/api/conta', {
