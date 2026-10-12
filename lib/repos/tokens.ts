@@ -8,15 +8,26 @@ export interface TokenView {
   expira_em: string;
   resgatado_por: string | null;
   resgatado_em: string | null;
+  criado_em: string;
 }
 
-const COLUNAS = `
-  id, codigo, plano_codigo, criado_em,
-  CASE WHEN resgatado_por IS NOT NULL THEN 'resgatado'
-       WHEN expira_em < now() THEN 'expirado'
-       ELSE 'disponivel' END AS status,
-  expira_em, resgatado_por, resgatado_em
-`;
+// A linha da área admin: a mesma TokenView mais o email de quem resgatou.
+export interface TokenAdminView extends TokenView {
+  resgatado_por_email: string | null;
+}
+
+// O CASE do status fica aqui, em um lugar só. O prefixo é opcional porque no join do
+// admin `id` seria ambíguo entre tokens e contas.
+const colunas = (prefixo?: string): string => {
+  const p = prefixo ? `${prefixo}.` : '';
+  return `
+    ${p}id, ${p}codigo, ${p}plano_codigo, ${p}criado_em,
+    CASE WHEN ${p}resgatado_por IS NOT NULL THEN 'resgatado'
+         WHEN ${p}expira_em < now() THEN 'expirado'
+         ELSE 'disponivel' END AS status,
+    ${p}expira_em, ${p}resgatado_por, ${p}resgatado_em
+  `;
+};
 
 // Alfabeto sem caracteres ambíguos (0/O, 1/I) para a pessoa conseguir digitar o código.
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -42,7 +53,7 @@ export async function gerarLote(
     const { rows } = await client.query(
       `INSERT INTO tokens (codigo, plano_codigo, lote_id, expira_em, criado_por)
        SELECT unnest($1::text[]), $2, $3, $4, $5
-       RETURNING ${COLUNAS}`,
+       RETURNING ${colunas()}`,
       [codigos, planoCodigo, lote.rows[0].id, expiraEm, criadoPor],
     );
     await client.query('COMMIT');
@@ -94,6 +105,17 @@ export async function resgateToken(codigo: string, contaId: string): Promise<Res
 }
 
 export async function listarTokens(): Promise<TokenView[]> {
-  const { rows } = await getPool().query(`SELECT ${COLUNAS} FROM tokens ORDER BY criado_em DESC`);
+  const { rows } = await getPool().query(`SELECT ${colunas()} FROM tokens ORDER BY criado_em DESC`);
   return rows as TokenView[];
+}
+
+// A listagem da área admin: o mesmo status derivado de `colunas()`, mais o email de quem
+// resgatou. O join fica no repositório, não na rota.
+export async function listarTokensComEmail(): Promise<TokenAdminView[]> {
+  const { rows } = await getPool().query(
+    `SELECT ${colunas('t')}, c.email AS resgatado_por_email
+     FROM tokens t LEFT JOIN contas c ON c.id = t.resgatado_por
+     ORDER BY t.criado_em DESC`
+  );
+  return rows as TokenAdminView[];
 }
