@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { createConta } from '../../lib/repos/contas';
 import {
-  criarRevisao, getRevisao, getRevisaoCompleta, listarRevisoes, listarRevisoesComResumo,
+  criarRevisao, getRevisao, getRevisaoCompleta, getRevisaoPorChave, listarRevisoes, listarRevisoesComResumo,
   getQuestoes, createQuestoes, createResposta, getScore, getResultadoCacheado, salvarVeredito,
 } from '../../lib/repos/revisoes';
 
@@ -108,4 +108,32 @@ test('getScore conta acertos da conta', async () => {
   await createResposta(questoes[0].id, '42', true, 'ok');
   await createResposta(questoes[1].id, '8', false, 'não');
   expect(await getScore(id)).toEqual({ acertos: 1, total: 2 });
+});
+
+test('criarRevisao guarda a chave de idempotência da tentativa', async () => {
+  const c = await conta('ana@example.com');
+  const id = await criarRevisao(pool, c.id, 'x', null, 'chave-1');
+  expect((await getRevisaoPorChave(pool, c.id, 'chave-1'))?.id).toBe(id);
+});
+
+test('getRevisaoPorChave não vê a chave de outra conta', async () => {
+  const a = await conta('ana@example.com');
+  const b = await conta('bob@example.com');
+  await criarRevisao(pool, a.id, 'x', null, 'chave-1');
+  expect(await getRevisaoPorChave(pool, b.id, 'chave-1')).toBeNull();
+});
+
+test('mesma chave na mesma conta viola o índice único (23505)', async () => {
+  const c = await conta('ana@example.com');
+  await criarRevisao(pool, c.id, 'x', null, 'chave-1');
+  await expect(criarRevisao(pool, c.id, 'y', null, 'chave-1')).rejects.toMatchObject({ code: '23505' });
+});
+
+test('mesma chave em contas diferentes não conflita', async () => {
+  const a = await conta('ana@example.com');
+  const b = await conta('bob@example.com');
+  const idA = await criarRevisao(pool, a.id, 'x', null, 'chave-1');
+  const idB = await criarRevisao(pool, b.id, 'y', null, 'chave-1');
+  expect((await getRevisaoPorChave(pool, a.id, 'chave-1'))?.id).toBe(idA);
+  expect((await getRevisaoPorChave(pool, b.id, 'chave-1'))?.id).toBe(idB);
 });

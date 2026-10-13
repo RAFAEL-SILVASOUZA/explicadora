@@ -6,11 +6,16 @@ import Home from '@/app/page';
 
 // `replace` entrou no mock porque as páginas chamam router.replace('/login').
 // `usePathname` entrou porque o Header marca o link ativo.
-vi.mock('next/navigation', () => {
-  const router = { push: vi.fn(), replace: vi.fn() };
-  return { useRouter: () => router, usePathname: () => '/' };
+// `router` é hoisted para que o teste de retomada afirme o redirect.
+const { router } = vi.hoisted(() => ({ router: { push: vi.fn(), replace: vi.fn() } }));
+vi.mock('next/navigation', () => ({ useRouter: () => router, usePathname: () => '/' }));
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  router.push.mockClear();
+  router.replace.mockClear();
+  vi.unstubAllGlobals();
 });
-afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); });
 
 const imagem = (name: string) => new File(['imagem'], name, { type: 'image/jpeg' });
 const pdf = new File(['pdf'], 'apostila.pdf', { type: 'application/pdf' });
@@ -127,4 +132,34 @@ test('remove espaços das bordas do texto sem alterar espaços internos ao envia
   await user.click(screen.getByRole('button', { name: /Gerar Questões/ }));
   await waitFor(() => expect(requests).toHaveLength(1));
   expect(requests[0].get('texto')).toBe('Sistema  solar');
+});
+
+test('envia a chave de idempotência da tentativa no header e a limpa no 200', async () => {
+  const user = userEvent.setup();
+  const headers: Headers[] = [];
+  vi.stubGlobal('fetch', async (_url: string, options: RequestInit) => {
+    headers.push(new Headers(options.headers));
+    return { ok: true, json: async () => ({ id: 'rev-1', saldo: 2 }) } as Response;
+  });
+  render(<NovaRevisao />);
+  await user.type(screen.getByLabelText('Conteúdo da revisão'), 'Sistema solar');
+  await user.click(screen.getByRole('button', { name: /Gerar Questões/ }));
+  await waitFor(() => expect(headers).toHaveLength(1));
+  expect(headers[0].get('x-idempotency-key')).toMatch(/[0-9a-f-]{36}/);
+  // No 200 confirmado a tentativa deixa de estar pendente.
+  expect(localStorage.getItem('estudo_tentativa')).toBeNull();
+});
+
+test('ao montar com tentativa pendente, redireciona para a revisão já gerada', async () => {
+  localStorage.setItem('estudo_token', 'token-de-teste');
+  localStorage.setItem('estudo_tentativa', 'chave-abc');
+  vi.stubGlobal('fetch', async (url: string) => {
+    if (url === '/api/revisoes') {
+      return { ok: true, json: async () => [{ id: 'rev-1', chave_idempotencia: 'chave-abc' }] } as Response;
+    }
+    return { ok: true, json: async () => [] } as Response;
+  });
+  render(<NovaRevisao />);
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/estudar/rev-1'));
+  expect(localStorage.getItem('estudo_tentativa')).toBeNull();
 });

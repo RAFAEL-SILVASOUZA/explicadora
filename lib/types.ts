@@ -60,10 +60,12 @@ export interface RevisaoCompleta {
 }
 
 // A linha da grid da área de revisões: a revisão mais o resumo do andamento.
+// `chave_idempotencia` permite ao cliente casar a tentativa pendente com a revisão.
 export interface ResumoRevisao extends Revisao {
   total_questoes: number;
   total_respostas: number;
   acertos: number;
+  chave_idempotencia?: string | null;
 }
 
 export interface ResultadoRevisao {

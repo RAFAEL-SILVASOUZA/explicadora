@@ -6,12 +6,26 @@ import { QuestaoInput, Resposta, Revisao, Questao, ResumoRevisao, ResultadoRevis
 // uma transação (e os testes) passam o pool direto.
 export async function criarRevisao(
   client: PoolClient | Pool, contaId: string, conteudoTexto: string, titulo: string | null,
+  chaveIdempotencia: string | null = null,
 ): Promise<string> {
   const { rows } = await client.query(
-    `INSERT INTO revisoes (conta_id, titulo, conteudo_texto) VALUES ($1, $2, $3) RETURNING id`,
-    [contaId, titulo, conteudoTexto],
+    `INSERT INTO revisoes (conta_id, titulo, conteudo_texto, chave_idempotencia) VALUES ($1, $2, $3, $4) RETURNING id`,
+    [contaId, titulo, conteudoTexto, chaveIdempotencia],
   );
   return rows[0].id as string;
+}
+
+// A chave de idempotência identifica a tentativa de submissão. O lookup é por conta:
+// a mesma chave em contas diferentes não conflita (índice único parcial por conta).
+export async function getRevisaoPorChave(
+  client: PoolClient | Pool, contaId: string, chave: string,
+): Promise<Revisao | null> {
+  const { rows } = await client.query(
+    `SELECT id, conta_id, titulo, conteudo_texto, criado_em FROM revisoes
+     WHERE conta_id = $1 AND chave_idempotencia = $2`,
+    [contaId, chave],
+  );
+  return (rows[0] as Revisao) ?? null;
 }
 
 export async function getRevisao(id: string, contaId: string): Promise<Revisao | null> {
@@ -36,7 +50,7 @@ export async function listarRevisoes(contaId: string): Promise<Revisao[]> {
 // por conta, com os joins, dá isso em uma consulta só.
 export async function listarRevisoesComResumo(contaId: string): Promise<ResumoRevisao[]> {
   const { rows } = await getPool().query(
-    `SELECT r.id, r.conta_id, r.titulo, r.conteudo_texto, r.criado_em,
+    `SELECT r.id, r.conta_id, r.titulo, r.conteudo_texto, r.criado_em, r.chave_idempotencia,
             COUNT(q.id)::int AS total_questoes,
             COUNT(res.id)::int AS total_respostas,
             COUNT(res.id) FILTER (WHERE res.correto)::int AS acertos

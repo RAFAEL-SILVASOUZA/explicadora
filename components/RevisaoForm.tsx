@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Rocket, Trash2 } from 'lucide-react';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
 import { MAX_IMAGENS } from '@/lib/constantes';
 import { apiFetch } from '@/lib/client/api';
 import { notificarSaldo } from '@/lib/client/saldo';
+import { guardarTentativa, lerTentativa, limparTentativa } from '@/lib/client/tentativa';
 
 export default function RevisaoForm() {
   const router = useRouter();
@@ -16,12 +17,39 @@ export default function RevisaoForm() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
   const [avisoImagens, setAvisoImagens] = useState('');
+  // Retomada: se há uma tentativa pendente da última visita (o usuário saiu no meio
+  // da geração), o servidor pode ter commitado a revisão. Ao montar, consulta a
+  // tentativa e redireciona para a revisão já gerada, em vez de mostrar o form.
+  const [retomando, setRetomando] = useState(() => lerTentativa() !== null);
+
+  useEffect(() => {
+    const chave = lerTentativa();
+    if (!chave) return;
+    apiFetch('/api/revisoes')
+      .then(async (r) => {
+        if (!r.ok) { setRetomando(false); return; }
+        const lista = await r.json();
+        const encontrada = lista.find((linha: { id: string; chave_idempotencia?: string }) =>
+          linha.chave_idempotencia === chave);
+        if (encontrada) {
+          limparTentativa();
+          router.replace(`/estudar/${encontrada.id}`);
+        } else {
+          // A tentativa não virou revisão (LLM falhou, nada commitado): mostra o form.
+          setRetomando(false);
+        }
+      })
+      .catch(() => setRetomando(false));
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (carregando || (!texto.trim() && arquivos.length === 0)) return;
     setCarregando(true);
     setErro('');
+
+    const chave = crypto.randomUUID();
+    guardarTentativa(chave);
 
     const formData = new FormData();
     formData.append('texto', texto.trim());
@@ -30,7 +58,11 @@ export default function RevisaoForm() {
     }
 
     try {
-      const res = await apiFetch('/api/revisao', { method: 'POST', body: formData });
+      const res = await apiFetch('/api/revisao', {
+        method: 'POST',
+        headers: { 'X-Idempotency-Key': chave },
+        body: formData,
+      });
       if (res.status === 402) {
         setErro((await res.json()).error);
         setCarregando(false);
@@ -38,6 +70,8 @@ export default function RevisaoForm() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      // 200 confirmado: a tentativa deixou de estar pendente.
+      limparTentativa();
       notificarSaldo();
       router.push(`/estudar/${data.id}`);
     } catch (err: unknown) {
@@ -46,7 +80,7 @@ export default function RevisaoForm() {
     }
   };
 
-  if (carregando) return <LoadingQuestoes />;
+  if (carregando || retomando) return <LoadingQuestoes />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
