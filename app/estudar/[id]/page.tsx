@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import ProgressoBarra from '@/components/ProgressoBarra';
 import QuestaoCard from '@/components/QuestaoCard';
 import FeedbackResposta from '@/components/FeedbackResposta';
+import LoadingQuestoes from '@/components/LoadingQuestoes';
 import { Questao, Resposta } from '@/lib/types';
 import { apiFetch, lerToken } from '@/lib/client/api';
 
@@ -75,11 +76,10 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
+        {/* Sem barra aqui: antes das questões chegarem ela diria "Questão 1 de 1 · 100%",
+            um progresso que ainda não existe. O mascote pensando já comunica a espera. */}
         <main className="max-w-2xl mx-auto px-4 py-8">
-          <ProgressoBarra atual={1} total={questoes.length || 1} />
-          <div className="card">
-            <p className="text-2xl font-extrabold text-ink">Carregando...</p>
-          </div>
+          <LoadingQuestoes />
         </main>
       </>
     );
@@ -91,7 +91,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
         <Header />
         <main className="max-w-2xl mx-auto px-4 py-8">
           <div className="card text-center border-2 border-danger/40">
-            <p className="text-2xl font-extrabold text-danger mb-4">
+            <p className="text-2xl font-extrabold text-danger-ink mb-4">
               <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro}
             </p>
             <button type="button" onClick={() => router.push('/')} className="btn-primary">
@@ -109,7 +109,12 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
       <main className="max-w-2xl mx-auto px-4 py-8">
         <ProgressoBarra atual={indiceAtual + 1} total={questoes.length} />
         {feedback ? (
-          <FeedbackResposta correto={feedback.correto} explicacao={feedback.explicacao} onProxima={handleProxima} />
+          <FeedbackResposta
+            correto={feedback.correto}
+            explicacao={feedback.explicacao}
+            onProxima={handleProxima}
+            isLast={indiceAtual + 1 >= questoes.length}
+          />
         ) : (
           <QuestaoCard questao={questoes[indiceAtual]} onResponder={handleResponder} enviando={carregando} />
         )}

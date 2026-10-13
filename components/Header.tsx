@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { Home, BookOpen, User, LogOut, ShieldCheck } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { apiFetch, lerToken, limparToken } from '@/lib/client/api';
 import { assinarSaldo } from '@/lib/client/saldo';
-import MascoteCoruja from './MascoteCoruja';
+import Mascote from './Mascote';
 
 interface Sessao {
   role: 'user' | 'admin';
@@ -15,7 +16,13 @@ interface Sessao {
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [sessao, setSessao] = useState<Sessao | null>(null);
+
+  // Uma navegação sem estado ativo não diz onde você está. O prefixo mantém o link
+  // aceso dentro das páginas filhas (/revisoes/abc continua "Revisões").
+  const ativo = (href: string) => pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+  const navClass = (href: string) => `nav-link ${ativo(href) ? 'bg-primary-light text-primary-dark' : ''}`;
 
   const carregarSaldo = useCallback(() => {
     if (!lerToken()) {
@@ -45,22 +52,28 @@ export default function Header() {
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-primary/15">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
         <Link href="/" className="flex items-center gap-2 font-extrabold text-primary text-lg">
-          <MascoteCoruja humor="feliz" className="w-8 h-8 shrink-0" aria-hidden="true" />
+          <Mascote humor="feliz" className="w-8 h-8 shrink-0" decorative />
           Estudo Divertido
         </Link>
 
         <nav aria-label="Navegação principal" className="ml-auto flex items-center gap-1 flex-wrap">
-          <Link href="/" className="nav-link">Início</Link>
-          <Link href="/revisoes" className="nav-link">Revisões</Link>
-          <Link href="/conta" className="nav-link">Minha conta</Link>
+          <Link href="/" className={navClass('/')} aria-current={ativo('/') ? 'page' : undefined}>
+            <Home size={18} aria-hidden="true" /> Início
+          </Link>
+          <Link href="/revisoes" className={navClass('/revisoes')} aria-current={ativo('/revisoes') ? 'page' : undefined}>
+            <BookOpen size={18} aria-hidden="true" /> Revisões
+          </Link>
+          <Link href="/conta" className={navClass('/conta')} aria-current={ativo('/conta') ? 'page' : undefined}>
+            <User size={18} aria-hidden="true" /> Minha conta
+          </Link>
           {sessao?.role === 'admin' && (
-            <Link href="/admin" className="nav-link">
+            <Link href="/admin" className={navClass('/admin')} aria-current={ativo('/admin') ? 'page' : undefined}>
               <ShieldCheck size={18} aria-hidden="true" /> Admin
             </Link>
           )}
 
           {sessao && (
-            <span className="badge bg-success-light text-success" aria-label={`Saldo: ${sessao.saldo_revisoes} revisões`}>
+            <span className="badge bg-success-light text-success-ink" aria-label={`Saldo: ${sessao.saldo_revisoes} revisões`}>
               {sessao.saldo_revisoes} revisões
             </span>
           )}

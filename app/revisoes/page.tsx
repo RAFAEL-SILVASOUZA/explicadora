@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { History } from 'lucide-react';
 import Header from '@/components/Header';
+import Mascote from '@/components/Mascote';
 import RevisaoGrid, { NovaRevisaoBotao } from '@/components/RevisaoGrid';
 import { apiFetch, lerToken } from '@/lib/client/api';
 import { ResumoRevisao } from '@/lib/types';
@@ -45,7 +46,11 @@ export default function Revisoes() {
           <p className="text-ink/70">Carregando suas revisões...</p>
         ) : revisoes.length === 0 ? (
           <div className="card text-center">
-            <p className="text-ink/70 mb-4">Você ainda não tem revisões. Comece criando a primeira.</p>
+            <div className="flex justify-center mb-4">
+              <Mascote humor="feliz" className="w-20 h-20 animate-float" decorative />
+            </div>
+            <p className="text-xl font-extrabold text-ink mb-2">Você ainda não tem revisões.</p>
+            <p className="text-ink/70 mb-5">Escolha um assunto e a Lia cria as perguntas para você.</p>
             <NovaRevisaoBotao />
           </div>
         ) : (

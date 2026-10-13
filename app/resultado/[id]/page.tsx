@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trophy, Dumbbell, MessageSquare, Frown, RotateCcw, Rocket, Sparkles } from 'lucide-react';
+import { Trophy, MessageSquare, Frown, RotateCcw, Rocket, Sparkles } from 'lucide-react';
 import Header from '@/components/Header';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
-import MascoteCoruja from '@/components/MascoteCoruja';
+import Mascote from '@/components/Mascote';
+import Confetti from '@/components/Confetti';
 import { apiFetch, lerToken } from '@/lib/client/api';
 
 interface Resultado {
@@ -55,7 +56,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
         <Header />
         <main className="max-w-2xl mx-auto px-4 py-8">
           <div className="card text-center border-2 border-danger/40">
-            <p className="text-2xl font-extrabold text-danger mb-4">
+            <p className="text-2xl font-extrabold text-danger-ink mb-4">
               <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro || 'Erro ao carregar resultado'}
             </p>
             <button type="button" onClick={() => router.push('/')} className="btn-primary">
@@ -114,14 +115,18 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     <>
       <Header />
       <main className="max-w-2xl mx-auto px-4 py-8 text-center">
+        {cemPorCento && <Confetti />}
         <div className="flex justify-center mb-6">
-          <MascoteCoruja humor="celebrando" className="w-24 h-24 animate-float" aria-hidden="true" />
+          <Mascote humor="celebrando" className="w-24 h-24 animate-wiggle" decorative />
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-primary mb-4">
           {cemPorCento ? 'Incrível! Você acertou tudo!' : preparado ? 'Você está preparado!' : 'Continue praticando!'}
         </h1>
 
         <div className="card mb-6">
+          <h2 className="text-2xl font-extrabold text-ink mb-3 flex items-center justify-center gap-2">
+            <Trophy size={24} className="text-star" aria-hidden="true" /> Pontuação
+          </h2>
           <div className="text-6xl font-extrabold text-ink mb-2">{resultado.percentual}%</div>
           <p className="text-xl text-ink/70">
             {resultado.acertos} de {resultado.total} questões corretas
@@ -130,13 +135,13 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
 
         <div className={`card mb-6 ${preparado ? 'border-2 border-success/40' : 'border-2 border-secondary/40'}`}>
           <h2 className="text-2xl font-extrabold mb-4 flex items-center gap-2">
-            <MessageSquare size={24} aria-hidden="true" /> O que o professor diz
+            <MessageSquare size={24} aria-hidden="true" /> O que a Lia diz
           </h2>
           <p className="text-xl text-ink/80">{resultado.veredito}</p>
         </div>
 
         {erroAcao && (
-          <div role="alert" className="card border-2 border-danger/40 text-danger font-semibold mb-4">
+          <div role="alert" className="card border-2 border-danger/40 text-danger-ink font-semibold mb-4">
             {erroAcao}
           </div>
         )}

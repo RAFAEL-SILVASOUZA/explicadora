@@ -22,10 +22,14 @@ body {
     @apply bg-white rounded-3xl shadow-card p-6 sm:p-8;
   }
   .input {
-    @apply w-full text-lg p-3 rounded-2xl border-2 border-gray-200 focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-50;
+    @apply w-full text-lg p-3 rounded-2xl border-2 border-ink/15 focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-50;
   }
   .badge {
     @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold;
+  }
+  /* Letra de alternativa (A, B, C...) e número de questão: o mesmo círculo em todo o app. */
+  .chip {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-light text-primary-dark font-extrabold shrink-0;
   }
   .nav-link {
     @apply inline-flex items-center gap-1 px-3 py-2 rounded-xl font-semibold text-ink/70 hover:bg-primary-light hover:text-primary-dark transition-colors;

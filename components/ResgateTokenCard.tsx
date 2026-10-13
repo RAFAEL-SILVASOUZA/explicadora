@@ -68,13 +68,13 @@ export default function ResgateTokenCard({ onResgate }: { onResgate?: () => void
       </form>
 
       {erro && (
-        <div role="alert" className="mt-4 bg-danger-light border-2 border-danger/40 rounded-2xl p-4 text-danger font-semibold">
+        <div role="alert" className="mt-4 bg-danger-light border-2 border-danger/40 rounded-2xl p-4 text-danger-ink font-semibold">
           {erro}
         </div>
       )}
 
       {ok && (
-        <div role="status" className="mt-4 bg-success-light border-2 border-success/40 rounded-2xl p-4 text-success font-semibold">
+        <div role="status" className="mt-4 bg-success-light border-2 border-success/40 rounded-2xl p-4 text-success-ink font-semibold">
           Pacote {ok.plano} resgatado: +{ok.revisoes} revisões. Novo saldo: {ok.novoSaldo}.
         </div>
       )}

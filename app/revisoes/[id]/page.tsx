@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Frown, Trophy, MessageSquare, Play } from 'lucide-react';
 import Header from '@/components/Header';
-import MascoteCoruja from '@/components/MascoteCoruja';
+import Mascote from '@/components/Mascote';
 import RespostaItem from '@/components/RespostaItem';
 import { tituloDaRevisao } from '@/components/RevisaoGrid';
 import { apiFetch, lerToken } from '@/lib/client/api';
@@ -101,7 +101,7 @@ export default function RevisaoDetalhe({ params }: { params: { id: string } }) {
               {dados.resultado?.veredito ? (
                 <div className="rounded-2xl bg-primary-light/50 p-4">
                   <p className="font-bold text-ink mb-2 flex items-center gap-2">
-                    <MessageSquare size={20} aria-hidden="true" /> O que o professor diz
+                    <MessageSquare size={20} aria-hidden="true" /> O que a Lia diz
                   </p>
                   <p className="text-ink/80">{dados.resultado.veredito}</p>
                 </div>
@@ -122,7 +122,7 @@ export default function RevisaoDetalhe({ params }: { params: { id: string } }) {
 
         <section aria-labelledby="perguntas-titulo">
           <h2 id="perguntas-titulo" className="text-xl font-extrabold text-ink mb-4 flex items-center gap-2">
-            <MascoteCoruja humor="pensando" className="w-8 h-8 shrink-0" aria-hidden="true" decorative />
+            <Mascote humor="pensando" className="w-8 h-8 shrink-0" decorative />
             Perguntas e respostas
           </h2>
           {total === 0 ? (

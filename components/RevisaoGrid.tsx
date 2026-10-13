@@ -6,9 +6,9 @@ import { ResumoRevisao } from '@/lib/types';
 
 function statusDaRevisao(r: ResumoRevisao): { texto: string; classe: string } {
   if (r.total_questoes === 0) return { texto: 'Vazia', classe: 'bg-primary-light text-primary-dark' };
-  if (r.total_respostas === 0) return { texto: 'Não iniciada', classe: 'bg-secondary-light text-secondary' };
-  if (r.total_respostas < r.total_questoes) return { texto: 'Em andamento', classe: 'bg-secondary-light text-secondary' };
-  return { texto: 'Finalizada', classe: 'bg-success-light text-success' };
+  if (r.total_respostas === 0) return { texto: 'Não iniciada', classe: 'bg-secondary-light text-secondary-ink' };
+  if (r.total_respostas < r.total_questoes) return { texto: 'Em andamento', classe: 'bg-secondary-light text-secondary-ink' };
+  return { texto: 'Finalizada', classe: 'bg-success-light text-success-ink' };
 }
 
 export function tituloDaRevisao(r: { titulo: string | null; conteudo_texto: string }): string {
@@ -30,7 +30,7 @@ export default function RevisaoGrid({ revisoes }: { revisoes: ResumoRevisao[] })
                 {r.total_respostas}/{r.total_questoes} respondidas
               </span>
               {r.total_respostas > 0 && (
-                <span className="badge bg-success-light text-success">{r.acertos} acertos</span>
+                <span className="badge bg-success-light text-success-ink">{r.acertos} acertos</span>
               )}
             </div>
             <p className="text-sm text-ink/60">{new Date(r.criado_em).toLocaleDateString('pt-BR')}</p>

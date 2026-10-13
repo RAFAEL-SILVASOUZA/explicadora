@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import { guardarToken } from '@/lib/client/api';
-import MascoteCoruja from '@/components/MascoteCoruja';
+import Mascote from '@/components/Mascote';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function Cadastro() {
     <main className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-4">
-          <MascoteCoruja humor="pensando" className="w-20 h-20 animate-float" aria-hidden="true" />
+          <Mascote humor="pensando" className="w-20 h-20 animate-float" decorative />
         </div>
         <form onSubmit={cadastrar} className="card space-y-4" noValidate>
           <h1 className="text-2xl font-extrabold text-primary">Criar conta</h1>
@@ -68,12 +68,12 @@ export default function Cadastro() {
           </div>
 
           {erro && (
-            <div role="alert" className="bg-danger-light border-2 border-danger/40 rounded-2xl p-4 text-danger font-semibold">
+            <div role="alert" className="bg-danger-light border-2 border-danger/40 rounded-2xl p-4 text-danger-ink font-semibold">
               {erro}
             </div>
           )}
 
-          <button type="submit" disabled={enviando || !email || !senha} className="btn-primary">
+          <button type="submit" disabled={enviando || !email || !senha} aria-busy={enviando || undefined} className="btn-primary">
             <UserPlus size={22} aria-hidden="true" />
             {enviando ? 'Criando conta...' : 'Cadastrar'}
           </button>

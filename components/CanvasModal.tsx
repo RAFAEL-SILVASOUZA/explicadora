@@ -83,13 +83,20 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
     onSend(base64);
   };
 
+  // Modal sem fechamento por teclado é armadilha: quem abriu com a mão fecha com o Esc.
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+    <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-lg" role="dialog" aria-modal="true" aria-label="Desenhar fórmula" tabIndex={-1} autoFocus>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-800">Desenhar fórmula</h3>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
-            <X size={24} />
+          <h3 className="text-xl font-extrabold text-ink">Desenhar fórmula</h3>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="p-2 rounded-full hover:bg-primary-light focus-visible:outline-offset-2">
+            <X size={24} aria-hidden="true" />
           </button>
         </div>
 
@@ -97,7 +104,7 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
           ref={canvasRef}
           width={500}
           height={350}
-          className="w-full border-2 border-gray-200 rounded-xl cursor-crosshair touch-none"
+          className="w-full border-2 border-ink/15 rounded-xl cursor-crosshair touch-none"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}
@@ -108,19 +115,12 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
         />
 
         <div className="flex gap-3 mt-4">
-          <button
-            onClick={clearCanvas}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50"
-          >
-            <Eraser size={20} />
+          <button type="button" onClick={clearCanvas} className="btn-secondary !py-3">
+            <Eraser size={20} aria-hidden="true" />
             Limpar
           </button>
-          <button
-            onClick={sendDrawing}
-            disabled={!hasContent}
-            className="flex-1 flex items-center justify-center gap-2 bg-primary text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send size={20} />
+          <button type="button" onClick={sendDrawing} disabled={!hasContent} className="btn-primary">
+            <Send size={20} aria-hidden="true" />
             Enviar
           </button>
         </div>

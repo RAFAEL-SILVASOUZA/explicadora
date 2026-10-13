@@ -51,7 +51,7 @@ export default function RevisaoForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label htmlFor="conteudo" className="block text-xl font-semibold text-gray-700 mb-2">Conteúdo da revisão</label>
+        <label htmlFor="conteudo" className="block text-xl font-semibold text-ink mb-2">Conteúdo da revisão</label>
         <textarea
           id="conteudo"
           name="conteudo"
@@ -62,9 +62,9 @@ export default function RevisaoForm() {
         />
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-4 sm:p-6">
-        <label htmlFor="arquivos" className="block text-xl font-semibold text-gray-700 mb-2">Imagens e PDFs (opcional)</label>
-        <p id="ajuda-arquivos" className="text-gray-600 mb-4">Adicione um arquivo por vez ou vários juntos. Confirme a seleção no seu aparelho e adicione mais quando quiser.</p>
+      <div className="bg-white rounded-2xl border-2 border-dashed border-ink/20 p-4 sm:p-6">
+        <label htmlFor="arquivos" className="block text-xl font-semibold text-ink mb-2">Imagens e PDFs (opcional)</label>
+        <p id="ajuda-arquivos" className="text-ink/70 mb-4">Adicione um arquivo por vez ou vários juntos. Confirme a seleção no seu aparelho e adicione mais quando quiser.</p>
         <input
           ref={inputRef}
           id="arquivos"
@@ -107,8 +107,8 @@ export default function RevisaoForm() {
           <Plus size={22} aria-hidden="true" />
           {arquivos.length ? 'Adicionar mais arquivos' : 'Adicionar imagens ou PDFs'}
         </button>
-        <p className="text-sm text-gray-500 mt-3">PNG, JPG, WEBP e PDF. Até {MAX_IMAGENS} imagens no total.</p>
-        <p role="status" className="text-gray-700 mt-4 font-medium">
+        <p className="text-sm text-ink/50 mt-3">PNG, JPG, WEBP e PDF. Até {MAX_IMAGENS} imagens no total.</p>
+        <p role="status" className="text-ink mt-4 font-medium">
           {arquivos.length === 0
             ? 'Nenhum arquivo adicionado ainda.'
             : arquivos.length === 1
@@ -118,11 +118,11 @@ export default function RevisaoForm() {
         {arquivos.length > 0 && (
           <ul className="mt-3 space-y-2" aria-label="Arquivos adicionados">
             {arquivos.map((file, index) => (
-              <li key={index} className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
+              <li key={index} className="flex items-center gap-3 rounded-xl bg-ink/5 p-3">
                 <FileText size={24} className="shrink-0 text-primary" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-gray-800 break-all">{file.name}</p>
-                  <p className="text-sm text-gray-500">{Math.max(1, Math.ceil(file.size / 1024))} KB</p>
+                  <p className="text-ink break-all">{file.name}</p>
+                  <p className="text-sm text-ink/50">{Math.max(1, Math.ceil(file.size / 1024))} KB</p>
                 </div>
                 <button type="button" aria-label={`Remover ${file.name}`} onClick={() => {
                   setArquivos(anteriores => anteriores.filter((_, i) => i !== index));

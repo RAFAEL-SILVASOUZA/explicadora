@@ -5,9 +5,10 @@ import NovaRevisao from '@/app/revisoes/nova/page';
 import Home from '@/app/page';
 
 // `replace` entrou no mock porque as páginas chamam router.replace('/login').
+// `usePathname` entrou porque o Header marca o link ativo.
 vi.mock('next/navigation', () => {
   const router = { push: vi.fn(), replace: vi.fn() };
-  return { useRouter: () => router };
+  return { useRouter: () => router, usePathname: () => '/' };
 });
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); });
 
@@ -111,7 +112,7 @@ test('mostra o aviso de saldo esgotado (402) em vez do spinner após o envio', a
   await user.click(screen.getByRole('button', { name: /Gerar Questões/ }));
   const alerta = await screen.findByRole('alert');
   expect(alerta.textContent).toBe(mensagem);
-  expect(screen.queryByText('O professor está preparando as questões...')).toBeNull();
+  expect(screen.queryByText('A Lia está preparando as questões...')).toBeNull();
 });
 
 test('remove espaços das bordas do texto sem alterar espaços internos ao enviar', async () => {

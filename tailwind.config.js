@@ -12,12 +12,19 @@ module.exports = {
         'primary-light': '#EDE8FE',
         secondary: '#FF8A3D',
         'secondary-light': '#FFF0E5',
-        success: '#2EC4B6',
-        'success-light': '#E0F7F4',
+        // secondary/success são cores de superfície (fundos, bordas, ícones). Para TEXTO
+        // sobre branco elas não passam em AA (2.33:1 e 2.16:1), então existem os ink.
+        'secondary-ink': '#C2410C',
+        'success-ink': '#0F766E',
+        star: '#FFC107',
         danger: '#FF5D5D',
         'danger-light': '#FFE9E9',
+        'danger-ink': '#B91C1C',
         bg: '#FDF6EC',
         ink: '#2D2A3E',
+        // Personagem: rosto do mascote. Decorativa, só para o SVG do personagem —
+        // nunca cor de texto nem de superfície de UI.
+        skin: '#F7D9C2',
       },
       fontFamily: {
         sans: ['var(--font-nunito)', 'system-ui', 'sans-serif'],
