@@ -8,7 +8,10 @@ export function guardarTentativa(chave: string): void {
   localStorage.setItem(CHAVE, chave);
 }
 
+// O componente chama este helper no pré-render, onde localStorage não existe:
+// no servidor não há tentativa pendente, então devolve null em vez de lançar.
 export function lerTentativa(): string | null {
+  if (typeof localStorage === 'undefined') return null;
   return localStorage.getItem(CHAVE);
 }
 
