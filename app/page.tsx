@@ -1,37 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen, History } from 'lucide-react';
+import { BookOpen, History, KeyRound } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
-import PlanosCard from '@/components/PlanosCard';
-import ResgateTokenCard from '@/components/ResgateTokenCard';
-import { apiFetch, lerToken } from '@/lib/client/api';
-import { Plano } from '@/lib/types';
+import { lerToken } from '@/lib/client/api';
 
 export default function Home() {
   const router = useRouter();
-  const [planos, setPlanos] = useState<Plano[]>([]);
 
   useEffect(() => {
-    if (!lerToken()) {
-      router.replace('/login');
-      return;
-    }
-    apiFetch('/api/planos')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setPlanos(data); })
-      .catch(() => {});
+    if (!lerToken()) router.replace('/login');
   }, [router]);
-
-  const carregarPlanos = useCallback(() => {
-    apiFetch('/api/planos')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setPlanos(data); })
-      .catch(() => {});
-  }, []);
 
   return (
     <>
@@ -44,8 +26,8 @@ export default function Home() {
           <p className="text-lg text-ink/70">Aprenda brincando com a Lia!</p>
         </section>
 
-        {/* A ação principal da home é estudar, então ela vem antes dos planos: o olho do
-            criança cai aqui primeiro, e o plano é consequência, não o caminho. */}
+        {/* A ação principal da home é estudar, então ela vem antes dos créditos: o olho da
+            criança cai aqui primeiro, e o pacote é consequência, não o caminho. */}
         <section className="card text-center" aria-labelledby="entrar-revisoes">
           <h2 id="entrar-revisoes" className="text-2xl font-extrabold text-ink mb-3">Hora de estudar</h2>
           <p className="text-ink/70 mb-5">
@@ -59,8 +41,16 @@ export default function Home() {
           </div>
         </section>
 
-        <PlanosCard planos={planos} />
-        <ResgateTokenCard onResgate={carregarPlanos} />
+        {/* Planos, saldo, resgate e extrato têm uma área só: /creditos. A home só aponta para lá. */}
+        <section className="card text-center" aria-labelledby="entrar-creditos">
+          <h2 id="entrar-creditos" className="text-2xl font-extrabold text-ink mb-3">Créditos e pacotes</h2>
+          <p className="text-ink/70 mb-5">
+            Veja seu saldo, contrate um pacote e cole o código que você recebeu para somar revisões.
+          </p>
+          <Link href="/creditos" className="btn-secondary !w-auto">
+            <KeyRound size={22} aria-hidden="true" /> Ver meus créditos
+          </Link>
+        </section>
       </main>
     </>
   );

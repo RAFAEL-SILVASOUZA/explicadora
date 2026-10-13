@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Home, BookOpen, User, LogOut, ShieldCheck } from 'lucide-react';
+import { Home, BookOpen, User, LogOut, ShieldCheck, CircleDollarSign } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { apiFetch, lerToken, limparToken } from '@/lib/client/api';
 import { assinarSaldo } from '@/lib/client/saldo';
@@ -74,6 +74,9 @@ export default function Header() {
           </Link>
           <Link href="/revisoes" className={navClass('/revisoes')} aria-current={ativo('/revisoes') ? 'page' : undefined}>
             <BookOpen size={18} aria-hidden="true" /> Revisões
+          </Link>
+          <Link href="/creditos" className={navClass('/creditos')} aria-current={ativo('/creditos') ? 'page' : undefined}>
+            <CircleDollarSign size={18} aria-hidden="true" /> Créditos
           </Link>
           <Link href="/conta" className={navClass('/conta')} aria-current={ativo('/conta') ? 'page' : undefined}>
             <User size={18} aria-hidden="true" /> Minha conta

@@ -57,7 +57,8 @@ O monólito Next.js 14 (App Router) continua. Três camadas novas em volta do co
 | Rota | Descrição |
 |------|-----------|
 | `/login`, `/cadastro` | Entrar e criar conta. |
-| `/conta` | Saldo, plano, campo para colar token, histórico de revisões e resgates. |
+| `/creditos` | Área exclusiva de créditos: saldo, plano atual, catálogo de pacotes, campo para colar token e extrato de resgates e consumos. Único lugar do app onde se resgata código. |
+| `/conta` | Só o cadastro: nome, e-mail, conta desde quando. Aponta para `/creditos` e para `/revisoes`. |
 | `/admin` | Gerar lote de tokens, listar tokens, ver resgates. |
 
 As páginas atuais passam a chamar a API com o header Bearer, porque hoje chamam sem header.
@@ -132,7 +133,7 @@ movimentos_saldo
 
 Status de token (`disponível`, `resgatado`, `expirado`) é derivado por consulta, nunca armazenado, para não divergir do estado real.
 
-"Plano atual" de uma conta, como exibido em `/conta`, é o plano do último token resgatado; sem resgate, é `free`. O plano não define o saldo: o saldo é a soma dos resgates menos o consumo.
+"Plano atual" de uma conta, como exibido em `/creditos`, é o plano do último token resgatado; sem resgate, é `free`. O plano não define o saldo: o saldo é a soma dos resgates menos o consumo.
 
 `revisoes.titulo` é nullable: a revisão gerada pela LLM não tem título, então a tela usa os primeiros caracteres do conteúdo quando ele está vazio.
 
@@ -199,7 +200,7 @@ Toda leitura de revisão verifica `revisoes.conta_id = conta.id` do JWT. Hoje as
 - **Cobertura dos repositórios:** `consumirSaldo` com dois chamados concorrentes na mesma conta; saldo nunca negativo; consumo com saldo 0 não insere revisão; resgate duplo recusado; token expirado recusado; resgate soma o valor do plano e grava o movimento; conta A não lê revisão de conta B; email duplicado; saldo inicial 3 com movimento de registro.
 - **Unidade sem banco:** hash e verificação de senha, assinatura e verificação de JWT, formatação do código de token, expiração.
 - **A LLM fica fora dos testes de quota.** Os testes de `lib/llm.ts` continuam como estão, marcados como integração. Separar `npm run test:unit` e `npm run test:db`, porque `npm test` hoje depende de um modelo local lento e indisponível em CI.
-- **Manual, não automatizado:** telas de `/login`, `/conta` e `/admin`.
+- **Manual, não automatizado:** telas de `/login`, `/creditos`, `/conta` e `/admin`.
 
 ## Fora de Escopo
 

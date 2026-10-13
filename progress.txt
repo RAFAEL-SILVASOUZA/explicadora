@@ -61,6 +61,27 @@ Pendentes / fora do escopo de design
 - Verificado só em código, não visualmente: role/label/Esc do CanvasModal (precisa de questão
   não respondida para abrir o modal) e o estado vazio de /revisões (a conta de teste tem 1 revisão).
 
+FUNÇÃO — área exclusiva de créditos (2026-10-13)
+- Nova rota app/creditos/page.tsx: único lugar do app com saldo, plano atual, catálogo de pacotes,
+  campo para colar o código e extrato. Reusa PlanosCard e ResgateTokenCard sem alterá-los.
+- O que estava espalhado e saiu: app/page.tsx tinha PlanosCard + ResgateTokenCard (linhas 62-63) e
+  app/conta/page.tsx tinha os dois + o extrato (linhas 80-115).
+- app/page.tsx: ficou "Hora de estudar" + um card de atalho "Ver meus créditos". A home não faz mais
+  fetch de /api/planos (o useEffect de planos e o callback carregarPlanos foram removidos junto).
+- app/conta/page.tsx: virou só o cadastro (nome, e-mail, conta desde). Não faz mais fetch de
+  /api/planos nem lê movimentos. /api/conta não mudou de contrato: a página só deixou de usar os
+  campos de crédito que a rota devolve.
+- components/Header.tsx: link "Créditos" (CircleDollarSign) entre Revisões e Minha conta. O helper
+  ativo() já casa prefixo, então o link fica aceso em /creditos sem mudança extra.
+- Testes: components/Creditos.test.tsx (2 novos: a tela reúne saldo+plano+resgate+extrato; resgate
+  envia o código e mostra o novo saldo). O teste da home em RevisaoForm.test.tsx passou a assertar
+  o atalho e a AUSÊNCIA do campo "Código do pacote". 43/43 em npm test; npx tsc --noEmit limpo.
+- Spec atualizada: tabela de páginas e a linha de "plano atual" agora citam /creditos.
+- Não verificado no navegador: as três telas (sem servidor MCP de browser neste ambiente).
+- Pendência de copy (não tocada, é texto de API): o 402 de app/api/revisao/route.ts:79 e de
+  app/api/revisao/[id]/avancar/route.ts:46 diz "Resgate um token para continuar" sem apontar para
+  /creditos.
+
 MASCOTE — personagem original (2026-10-13)
 - components/MascoteCoruja.tsx → components/Mascote.tsx. A coruja era a identidade visual de
   outro produto; o app agora tem um personagem próprio: "Lia", uma menina de cabelo bob com

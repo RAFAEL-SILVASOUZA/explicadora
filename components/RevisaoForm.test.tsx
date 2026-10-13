@@ -71,7 +71,7 @@ test('limita o total acumulado de imagens e continua aceitando PDFs', async () =
   expect(screen.getByText('excedente.jpg')).toBeTruthy();
 });
 
-test('a home mostra os planos, o resgate e o link para a área de revisões', async () => {
+test('a home mostra o link para a área de revisões e o atalho para créditos, sem o formulário de resgate', async () => {
   localStorage.setItem('estudo_token', 'token-de-teste');
   vi.stubGlobal('fetch', async (url: string) => {
     if (url === '/api/planos') {
@@ -80,11 +80,10 @@ test('a home mostra os planos, o resgate e o link para a área de revisões', as
     return { ok: true, json: async () => [] } as Response;
   });
   render(<Home />);
-  // Intl usa espaço insensível a quebra de linha entre "R$" e o número, então o teste
-  // compara o número, não a string inteira.
-  await waitFor(() => expect(screen.getByText(/5,00/)).toBeTruthy());
-  expect(screen.getByLabelText('Código do pacote')).toBeTruthy();
   expect(screen.getByRole('link', { name: /Ir para as revisões/ })).toBeTruthy();
+  expect(screen.getByRole('link', { name: /Ver meus créditos/ })).toBeTruthy();
+  // Créditos têm uma área só (/creditos): a home aponta para lá, não replica o resgate.
+  expect(screen.queryByLabelText('Código do pacote')).toBeNull();
   // A home não é mais o formulário: o formulário fica na área de revisões.
   expect(screen.queryByLabelText('Conteúdo da revisão')).toBeNull();
 });
