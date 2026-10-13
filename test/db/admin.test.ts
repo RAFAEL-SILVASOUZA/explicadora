@@ -3,8 +3,11 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { NextRequest } from 'next/server';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { POST as gerar, GET as listar } from '../../app/api/admin/tokens/route';
+import { POST as revogar, DELETE as excluir } from '../../app/api/admin/tokens/[id]/route';
 import { createConta } from '../../lib/repos/contas';
 import { resgateToken } from '../../lib/repos/tokens';
+import { consumirSaldo } from '../../lib/quota';
+import { comTransacao } from '../../lib/repos/transacao';
 import { assinarToken } from '../../lib/auth/jwt';
 
 process.env.JWT_SECRET = 'segredo-de-teste-com-pelo-menos-32-caracteres';
@@ -24,6 +27,14 @@ const req = (contaId: string, role: 'user' | 'admin', body?: unknown) =>
 
 const semHeader = (method: 'GET' | 'POST') =>
   new NextRequest('http://localhost/api/admin/tokens', { method });
+
+// A rota de um código recebe o request e o params separados, como o Next entrega. O helper
+// devolve os dois juntos para a chamada ficar de uma linha.
+const chamada = (contaId: string, role: 'user' | 'admin', id: string, method: 'POST' | 'DELETE') =>
+  [new NextRequest(`http://localhost/api/admin/tokens/${id}`, {
+    method,
+    headers: { Authorization: `Bearer ${assinarToken(contaId, role)}` },
+  }), { params: { id } }] as const;
 
 test('conta comum não acessa a área admin', async () => {
   const conta = await createConta('ana@example.com', 'hash', 3);
@@ -81,4 +92,54 @@ test('listar mostra o email de quem resgatou', async () => {
   expect(linha.status).toBe('resgatado');
   expect(linha.resgatado_por).toBe(aluna.id);
   expect(linha.resgatado_por_email).toBe('ana@example.com');
+});
+
+test('free não gera lote', async () => {
+  const admin = await createConta('admin@example.com', 'hash', 0);
+  const res = await gerar(req(admin.id, 'admin', { plano_codigo: 'free', quantidade: 1 }));
+  expect(res.status).toBe(400);
+  expect((await res.json()).error).toContain('Free');
+});
+
+test('conta comum não revoga nem exclui um código', async () => {
+  const admin = await createConta('admin@example.com', 'hash', 0);
+  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }))).json();
+  expect((await revogar(...chamada(aluna.id, 'user', tokens[0].id, 'POST'))).status).toBe(403);
+  expect((await excluir(...chamada(aluna.id, 'user', tokens[0].id, 'DELETE'))).status).toBe(403);
+});
+
+test('revogação responde 409 quando o aluno passou do limite de uso do token', async () => {
+  const admin = await createConta('admin@example.com', 'hash', 0);
+  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }))).json();
+  await resgateToken(tokens[0].codigo, aluna.id);
+  for (let i = 0; i < 3; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
+  const res = await revogar(...chamada(admin.id, 'admin', tokens[0].id, 'POST'));
+  expect(res.status).toBe(409);
+  expect((await res.json()).error).toContain('até 2');
+});
+
+test('revogação pelo admin estorna o que sobra e mostra o quanto foi usado', async () => {
+  const admin = await createConta('admin@example.com', 'hash', 0);
+  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }))).json();
+  await resgateToken(tokens[0].codigo, aluna.id);
+  await comTransacao((c) => consumirSaldo(c, aluna.id));
+  const res = await revogar(...chamada(admin.id, 'admin', tokens[0].id, 'POST'));
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ ok: true, usados: 1, estornado: 19, novoSaldo: 0 });
+  const lista = await (await listar(req(admin.id, 'admin'))).json();
+  expect(lista[0].status).toBe('revogado');
+  expect(lista[0].usados).toBe(1);
+});
+
+test('exclusão pelo admin só aceita código que ainda não foi usado', async () => {
+  const admin = await createConta('admin@example.com', 'hash', 0);
+  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 2 }))).json();
+  await resgateToken(tokens[0].codigo, aluna.id);
+  expect((await excluir(...chamada(admin.id, 'admin', tokens[0].id, 'DELETE'))).status).toBe(409);
+  expect((await excluir(...chamada(admin.id, 'admin', tokens[1].id, 'DELETE'))).status).toBe(200);
+  expect((await excluir(...chamada(admin.id, 'admin', tokens[1].id, 'DELETE'))).status).toBe(404);
 });

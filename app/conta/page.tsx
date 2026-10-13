@@ -11,7 +11,7 @@ import { apiFetch, lerToken } from '@/lib/client/api';
 import { Plano } from '@/lib/types';
 
 interface Movimento {
-  tipo: 'registro' | 'resgate' | 'consumo';
+  tipo: 'registro' | 'resgate' | 'consumo' | 'revogacao';
   quantidade: number;
   plano_codigo: string | null;
   criado_em: string;
@@ -28,6 +28,7 @@ const TIPO_TEXTO: Record<Movimento['tipo'], string> = {
   registro: 'Cadastro',
   resgate: 'Resgate',
   consumo: 'Revisão gerada',
+  revogacao: 'Código revogado',
 };
 
 export default function Conta() {
@@ -65,7 +66,7 @@ export default function Conta() {
               </div>
               <div className="rounded-2xl bg-success-light p-4 flex-1 min-w-[12rem]">
                 <p className="text-sm font-semibold text-ink/60">Saldo</p>
-                <p className="text-2xl font-extrabold text-success">{dados.saldo} revisões</p>
+                <p className="text-2xl font-extrabold text-success-ink">{dados.saldo} revisões</p>
               </div>
             </div>
           ) : (
@@ -98,9 +99,9 @@ export default function Conta() {
                 </thead>
                 <tbody>
                   {dados.movimentos.map((m, i) => (
-                    <tr key={i} className="border-t border-gray-100">
+                    <tr key={i} className="border-t border-ink/10">
                       <td className="py-2">{TIPO_TEXTO[m.tipo]}</td>
-                      <td className={`py-2 font-bold ${m.quantidade > 0 ? 'text-success' : 'text-danger'}`}>
+                      <td className={`py-2 font-bold ${m.quantidade > 0 ? 'text-success-ink' : 'text-danger-ink'}`}>
                         {m.quantidade > 0 ? `+${m.quantidade}` : m.quantidade}
                       </td>
                       <td className="py-2">{m.plano_codigo ?? '-'}</td>

@@ -28,6 +28,11 @@ export async function POST(req: NextRequest) {
   if (!(await planoExiste(planoCodigo))) {
     return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });
   }
+  // O Free não gera códigos: ele é a concessão do cadastro, não um pacote que alguém entrega.
+  // Um lote de 'free' criaria códigos que não correspondem a nada vendido.
+  if (planoCodigo === 'free') {
+    return NextResponse.json({ error: 'O plano Free não gera códigos.' }, { status: 400 });
+  }
   if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 100) {
     return NextResponse.json({ error: 'Quantidade entre 1 e 100.' }, { status: 400 });
   }
