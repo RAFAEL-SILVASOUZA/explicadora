@@ -50,12 +50,27 @@ export interface Revisao {
   titulo: string | null;
   conteudo_texto: string;
   criado_em: string;
+  veredito?: string | null;
 }
 
 export interface RevisaoCompleta {
   revisao: Revisao;
   questoes: Questao[];
   respostas: Resposta[];
+}
+
+// A linha da grid da área de revisões: a revisão mais o resumo do andamento.
+export interface ResumoRevisao extends Revisao {
+  total_questoes: number;
+  total_respostas: number;
+  acertos: number;
+}
+
+export interface ResultadoRevisao {
+  acertos: number;
+  total: number;
+  percentual: number;
+  veredito: string | null;
 }
 
 export interface QuestaoInput {

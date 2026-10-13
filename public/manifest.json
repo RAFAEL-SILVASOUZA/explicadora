@@ -4,8 +4,8 @@
   "description": "Sistema de estudo com LLM para crianças",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFFFFF",
-  "theme_color": "#3B82F6",
+  "background_color": "#FDF6EC",
+  "theme_color": "#7C5CFC",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

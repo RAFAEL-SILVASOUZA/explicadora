@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: 'Estudo Divertido',
   description: 'Sistema de estudo com LLM para crianças',
   manifest: '/manifest.json',
+  icons: [{ rel: 'icon', url: '/favicon.png', type: 'image/png' }],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

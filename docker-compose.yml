@@ -9,6 +9,9 @@ services:
       # Sobrescreve o .env: dentro do container, localhost é o próprio container.
       # O .env mantém localhost:5403 para rodar a app no host (npm run dev).
       DATABASE_URL: postgres://estudo:estudo@postgres:5432/estudo
+      # Dentro do container, 127.0.0.1 não é a máquina do host: o LLM local
+      # (porta 1234) precisa ser alcançado via host.docker.internal.
+      LLM_BASE_URL: http://host.docker.internal:1234/v1
     volumes:
       - ./uploads:/app/uploads
     depends_on:

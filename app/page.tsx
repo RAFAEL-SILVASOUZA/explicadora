@@ -1,52 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen } from 'lucide-react';
-import RevisaoForm from '@/components/RevisaoForm';
+import { BookOpen, History } from 'lucide-react';
+import Header from '@/components/Header';
+import PlanosCard from '@/components/PlanosCard';
+import ResgateTokenCard from '@/components/ResgateTokenCard';
 import { apiFetch, lerToken } from '@/lib/client/api';
-import { Revisao } from '@/lib/types';
+import { Plano } from '@/lib/types';
 
 export default function Home() {
   const router = useRouter();
-  const [sessoes, setSessoes] = useState<Revisao[]>([]);
-
-  useEffect(() => { if (!lerToken()) router.replace('/login'); }, [router]);
+  const [planos, setPlanos] = useState<Plano[]>([]);
 
   useEffect(() => {
-    apiFetch('/api/sessoes')
-      .then(r => r.json())
-      .then(setSessoes)
+    if (!lerToken()) {
+      router.replace('/login');
+      return;
+    }
+    apiFetch('/api/planos')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setPlanos(data); })
+      .catch(() => {});
+  }, [router]);
+
+  const carregarPlanos = useCallback(() => {
+    apiFetch('/api/planos')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setPlanos(data); })
       .catch(() => {});
   }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-4 py-8 sm:p-8">
-      <h1 className="text-3xl sm:text-5xl text-center font-bold text-primary mb-4"><BookOpen size={40} className="inline mr-2" /> Estudo Divertido</h1>
-      <p className="text-lg sm:text-xl text-center text-gray-600 mb-8">Aprenda brincando com o professor virtual!</p>
+    <>
+      <Header />
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        <section className="text-center">
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-primary mb-3">
+            <BookOpen size={40} className="inline mr-2" aria-hidden="true" /> Estudo Divertido
+          </h1>
+          <p className="text-lg text-ink/70">Aprenda brincando com o professor virtual!</p>
+        </section>
 
-      <section className="w-full max-w-2xl mb-12" aria-labelledby="criar-revisao">
-        <h2 id="criar-revisao" className="text-2xl font-bold text-gray-700 mb-4">Criar revisão</h2>
-        <RevisaoForm />
-      </section>
+        <PlanosCard planos={planos} />
+        <ResgateTokenCard onResgate={carregarPlanos} />
 
-      {sessoes.length > 0 && (
-        <div className="w-full max-w-2xl">
-          <h2 className="text-xl font-bold text-gray-700 mb-4">Revisões anteriores</h2>
-          <div className="space-y-3">
-            {sessoes.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => router.push(`/estudar/${s.id}`)}
-                className="w-full text-left bg-white p-4 rounded-xl shadow hover:shadow-md transition-shadow"
-              >
-                <p className="font-semibold text-gray-800 truncate">{s.titulo ?? s.conteudo_texto.slice(0, 60)}...</p>
-                <p className="text-sm text-gray-500">{new Date(s.criado_em).toLocaleDateString('pt-BR')}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </main>
+        <section className="card text-center" aria-labelledby="entrar-revisoes">
+          <h2 id="entrar-revisoes" className="text-2xl font-extrabold text-ink mb-3">Hora de estudar</h2>
+          <p className="text-ink/70 mb-5">
+            Na área de revisões você cria uma nova revisão e vê o histórico com as perguntas, as respostas e o resultado.
+          </p>
+          <Link href="/revisoes" className="btn-primary !w-auto">
+            <History size={22} aria-hidden="true" /> Ir para as revisões
+          </Link>
+        </section>
+      </main>
+    </>
   );
 }

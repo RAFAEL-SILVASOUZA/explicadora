@@ -6,6 +6,7 @@ import { FileText, Plus, Rocket, Trash2 } from 'lucide-react';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
 import { MAX_IMAGENS } from '@/lib/constantes';
 import { apiFetch } from '@/lib/client/api';
+import { notificarSaldo } from '@/lib/client/saldo';
 
 export default function RevisaoForm() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function RevisaoForm() {
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      notificarSaldo();
       router.push(`/estudar/${data.id}`);
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Algo deu errado. Tente novamente.');
@@ -56,7 +58,7 @@ export default function RevisaoForm() {
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Se quiser, cole ou escreva o conteúdo para revisar..."
-          className="w-full h-36 text-base sm:text-lg p-4 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none resize-y"
+          className="input h-36 resize-y"
         />
       </div>
 
@@ -101,7 +103,7 @@ export default function RevisaoForm() {
           }}
           className="sr-only"
         />
-        <button type="button" onClick={() => inputRef.current?.click()} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-white font-semibold px-5 py-3 rounded-xl hover:bg-blue-600 focus-visible:outline-offset-4">
+        <button type="button" onClick={() => inputRef.current?.click()} className="btn-primary !w-auto !text-lg !py-3 focus-visible:outline-offset-4">
           <Plus size={22} aria-hidden="true" />
           {arquivos.length ? 'Adicionar mais arquivos' : 'Adicionar imagens ou PDFs'}
         </button>
@@ -138,18 +140,18 @@ export default function RevisaoForm() {
       </div>
 
       {erro && (
-        <div role="alert" className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-700 text-lg">
+        <div role="alert" className="bg-danger-light border-2 border-danger/40 rounded-2xl p-4 text-danger text-lg font-semibold">
           {erro}
         </div>
       )}
 
-      <p className="text-gray-600 text-center">Tudo pronto? As questões serão geradas com o texto e todos os arquivos da lista.</p>
+      <p className="text-ink/70 text-center">Tudo pronto? As questões serão geradas com o texto e todos os arquivos da lista.</p>
       <button
         type="submit"
-        disabled={!texto.trim() && arquivos.length === 0}
-        className="w-full bg-primary text-white text-xl font-bold py-4 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={(carregando) || (!texto.trim() && arquivos.length === 0)}
+        className="btn-primary"
       >
-        <Rocket size={24} className="inline mr-2" /> Gerar Questões
+        <Rocket size={24} aria-hidden="true" /> Gerar Questões
       </button>
     </form>
   );

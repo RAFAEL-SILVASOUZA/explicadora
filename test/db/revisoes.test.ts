@@ -3,8 +3,8 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { createConta } from '../../lib/repos/contas';
 import {
-  criarRevisao, getRevisao, getRevisaoCompleta, listarRevisoes,
-  createQuestoes, createResposta, getScore,
+  criarRevisao, getRevisao, getRevisaoCompleta, listarRevisoes, listarRevisoesComResumo,
+  getQuestoes, createQuestoes, createResposta, getScore, getResultadoCacheado, salvarVeredito,
 } from '../../lib/repos/revisoes';
 
 beforeAll(async () => { await prepararBanco(); });
@@ -59,6 +59,42 @@ test('id de questão vem como number, não como string (parser de int8)', async 
   expect(typeof r.id).toBe('number');
   expect(typeof r.questao_id).toBe('number');
   expect(r.questao_id).toBe(q.id);
+});
+
+test('listarRevisoesComResumo traz o andamento de cada revisão da conta', async () => {
+  const a = await conta('ana@example.com');
+  const b = await conta('bob@example.com');
+  await criarRevisao(pool, b.id, 'do bob', null);
+  const id1 = await criarRevisao(pool, a.id, 'primeira', null);
+  const id2 = await criarRevisao(pool, a.id, 'segunda', null);
+  await createQuestoes(pool, id1, [
+    { tipo: 'resposta_digitada', enunciado: 'q1', opcoes: [], resposta_correta: '42', dica: '' },
+    { tipo: 'resposta_digitada', enunciado: 'q2', opcoes: [], resposta_correta: '7', dica: '' },
+  ], 1);
+  const [q1] = await getQuestoes(id1);
+  await createResposta(q1.id, '42', true, 'ok');
+
+  const lista = await listarRevisoesComResumo(a.id);
+  expect(lista.map((r) => r.id)).toEqual([id2, id1]);
+  expect(lista[1]).toMatchObject({ total_questoes: 2, total_respostas: 1, acertos: 1 });
+  expect(lista[0]).toMatchObject({ total_questoes: 0, total_respostas: 0, acertos: 0 });
+});
+
+test('veredito guardado é lido pela conta, sem chamar a LLM', async () => {
+  const a = await conta('ana@example.com');
+  const b = await conta('bob@example.com');
+  const id = await criarRevisao(pool, a.id, 'x', null);
+  await createQuestoes(pool, id, [{ tipo: 'resposta_digitada', enunciado: 'q1', opcoes: [], resposta_correta: '42', dica: '' }], 1);
+  const [q] = await getQuestoes(id);
+  await createResposta(q.id, '8', false, 'não');
+
+  expect((await getResultadoCacheado(id, a.id))?.veredito).toBeNull();
+  await salvarVeredito(id, 'Muito bem, continue praticando.');
+  expect(await getResultadoCacheado(id, a.id)).toEqual({
+    acertos: 0, total: 1, percentual: 0, veredito: 'Muito bem, continue praticando.',
+  });
+  // O escopo por conta continua na consulta: conta B não lê o resultado de A.
+  expect(await getResultadoCacheado(id, b.id)).toBeNull();
 });
 
 test('getScore conta acertos da conta', async () => {

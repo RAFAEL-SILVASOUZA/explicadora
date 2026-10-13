@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trophy, Dumbbell, MessageSquare, Frown, RotateCcw, Rocket, Sparkles } from 'lucide-react';
+import Header from '@/components/Header';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
-import { apiFetch } from '@/lib/client/api';
+import MascoteCoruja from '@/components/MascoteCoruja';
+import { apiFetch, lerToken } from '@/lib/client/api';
 
 interface Resultado {
   veredito: string;
@@ -22,40 +24,52 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
   const [erroAcao, setErroAcao] = useState('');
 
   useEffect(() => {
+    if (!lerToken()) {
+      router.replace('/login');
+      return;
+    }
     apiFetch(`/api/revisao/${params.id}/finalizar`, { method: 'POST' })
-      .then(r => r.json())
-      .then(setResultado)
-      .catch(err => setErro(err.message))
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? 'Erro ao carregar resultado.');
+        setResultado(data);
+      })
+      .catch((err: Error) => setErro(err.message))
       .finally(() => setCarregando(false));
-  }, [params.id]);
+  }, [params.id, router]);
 
-  if (carregando) {
+  if (carregando && !processando) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 animate-bounce"><Trophy size={64} /></div>
-          <p className="text-2xl">Calculando resultado...</p>
-        </div>
-      </div>
+      <>
+        <Header />
+        <main className="max-w-2xl mx-auto px-4 py-8">
+          <LoadingQuestoes />
+        </main>
+      </>
     );
   }
 
   if (erro || !resultado) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-8">
-        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-8 max-w-md text-center">
-          <p className="text-2xl mb-4"><Frown size={32} className="inline mr-2" /> {erro || 'Erro ao carregar resultado'}</p>
-          <button onClick={() => router.push('/')} className="bg-primary text-white px-6 py-3 rounded-xl text-lg">
-            Voltar ao Início
-          </button>
-        </div>
-      </div>
+      <>
+        <Header />
+        <main className="max-w-2xl mx-auto px-4 py-8">
+          <div className="card text-center border-2 border-danger/40">
+            <p className="text-2xl font-extrabold text-danger mb-4">
+              <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro || 'Erro ao carregar resultado'}
+            </p>
+            <button type="button" onClick={() => router.push('/')} className="btn-primary">
+              Voltar ao início
+            </button>
+          </div>
+        </main>
+      </>
     );
   }
 
   const cemPorCento = resultado.percentual === 100;
   const preparado = resultado.percentual >= 70;
-  const textoAvancar = cemPorCento ? 'Próximo Nível! 🚀' : 'Desafio extra liberado!';
+  const textoAvancar = cemPorCento ? 'Próximo nível!' : 'Desafio extra liberado!';
 
   const handleReiniciar = async () => {
     setProcessando('reiniciar');
@@ -63,10 +77,10 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     try {
       const res = await apiFetch(`/api/revisao/${params.id}/reiniciar`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error ?? 'Não foi possível reiniciar.');
       router.push(`/estudar/${params.id}`);
-    } catch (err: any) {
-      setErroAcao(err.message);
+    } catch (err) {
+      setErroAcao(err instanceof Error ? err.message : 'Não foi possível reiniciar.');
       setProcessando(null);
     }
   };
@@ -77,71 +91,72 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     try {
       const res = await apiFetch(`/api/revisao/${params.id}/avancar`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error ?? 'Não foi possível avançar.');
       router.push(`/estudar/${params.id}`);
-    } catch (err: any) {
-      setErroAcao(err.message);
+    } catch (err) {
+      setErroAcao(err instanceof Error ? err.message : 'Não foi possível avançar.');
       setProcessando(null);
     }
   };
 
   if (processando === 'avancar') {
-    return <LoadingQuestoes />;
+    return (
+      <>
+        <Header />
+        <main className="max-w-2xl mx-auto px-4 py-8">
+          <LoadingQuestoes />
+        </main>
+      </>
+    );
   }
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="max-w-2xl mx-auto text-center">
-        <div className="mb-6">{preparado ? <Trophy size={72} className="text-amber-500" /> : <Dumbbell size={72} className="text-blue-500" />}</div>
-        <h1 className="text-4xl font-bold text-primary mb-4">
+    <>
+      <Header />
+      <main className="max-w-2xl mx-auto px-4 py-8 text-center">
+        <div className="flex justify-center mb-6">
+          <MascoteCoruja humor="celebrando" className="w-24 h-24 animate-float" aria-hidden="true" />
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-primary mb-4">
           {cemPorCento ? 'Incrível! Você acertou tudo!' : preparado ? 'Você está preparado!' : 'Continue praticando!'}
         </h1>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          <div className="text-6xl font-bold text-gray-800 mb-2">{resultado.percentual}%</div>
-          <p className="text-xl text-gray-600">
+        <div className="card mb-6">
+          <div className="text-6xl font-extrabold text-ink mb-2">{resultado.percentual}%</div>
+          <p className="text-xl text-ink/70">
             {resultado.acertos} de {resultado.total} questões corretas
           </p>
         </div>
 
-        <div className={`rounded-2xl p-8 mb-6 ${preparado ? 'bg-green-50 border-2 border-green-300' : 'bg-amber-50 border-2 border-amber-300'}`}>
-          <h2 className="text-2xl font-bold mb-4"><MessageSquare size={24} className="inline mr-2" /> O que o professor diz:</h2>
-          <p className="text-xl text-gray-700">{resultado.veredito}</p>
+        <div className={`card mb-6 ${preparado ? 'border-2 border-success/40' : 'border-2 border-secondary/40'}`}>
+          <h2 className="text-2xl font-extrabold mb-4 flex items-center gap-2">
+            <MessageSquare size={24} aria-hidden="true" /> O que o professor diz
+          </h2>
+          <p className="text-xl text-ink/80">{resultado.veredito}</p>
         </div>
 
         {erroAcao && (
-          <div role="alert" className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-700 text-lg mb-4">
+          <div role="alert" className="card border-2 border-danger/40 text-danger font-semibold mb-4">
             {erroAcao}
           </div>
         )}
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
-          <button
-            onClick={handleReiniciar}
-            disabled={processando !== null}
-            className="flex items-center justify-center gap-2 bg-white text-primary border-2 border-primary text-lg font-bold px-8 py-4 rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button type="button" onClick={handleReiniciar} disabled={processando !== null} className="btn-secondary">
             <RotateCcw size={22} aria-hidden="true" />
             {processando === 'reiniciar' ? 'Preparando...' : 'Segunda chance!'}
           </button>
 
-          <button
-            onClick={handleAvancar}
-            disabled={processando !== null}
-            className="flex items-center justify-center gap-2 bg-primary text-white text-lg font-bold px-8 py-4 rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button type="button" onClick={handleAvancar} disabled={processando !== null} className="btn-primary !w-auto">
             {cemPorCento ? <Rocket size={22} aria-hidden="true" /> : <Sparkles size={22} aria-hidden="true" />}
             {textoAvancar}
           </button>
         </div>
 
-        <button
-          onClick={() => router.push('/')}
-          className="text-gray-500 text-lg hover:text-gray-700 transition-colors"
-        >
-          Voltar ao Início
+        <button type="button" onClick={() => router.push('/')} className="text-ink/60 text-lg font-semibold hover:text-ink transition-colors">
+          Voltar ao início
         </button>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

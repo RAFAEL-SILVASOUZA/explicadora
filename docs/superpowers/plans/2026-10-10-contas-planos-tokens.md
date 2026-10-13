@@ -411,7 +411,8 @@ LLM_API_KEY=coloque-aqui
 ```json
 "migrate": "tsx lib/db/migrate.ts",
 "test": "vitest run test/unit components",
-"test:db": "vitest run test/db",
+"test:unit": "vitest run test/unit",
+"test:db": "vitest run test/db --no-file-parallelism",
 "test:llm": "vitest run lib/llm.test.ts"
 ```
 
@@ -420,16 +421,17 @@ Add to `lib/db/migrate.ts` the CLI entry so `npm run migrate` works:
 ```ts
 if (process.argv[1] && process.argv[1].endsWith('migrate.ts')) {
   aplicarMigracoes()
-    .then(() => semearAdmin())
     .then(() => process.exit(0))
     .catch((err) => { console.error(err.message); process.exit(1); });
 }
 ```
 
+Task 1 does not seed the admin account: `semearAdmin` is created in Task 3, so referencing it here would break Task 1. Task 3 extends this CLI entry with `.then(() => semearAdmin())`.
+
 - [ ] **Step 10: Commit**
 
 ```powershell
-git add migrations lib/db test/db docker-compose.yml .env.example package.json
+git add migrations lib/db test/db docker-compose.yml .env.example package.json package-lock.json
 git commit -m "feat: Postgres, pool e runner de migrações"
 ```
 
@@ -721,25 +723,31 @@ The migration cannot hash a password, so the admin account is seeded by the runn
 import { getPool } from './pool';
 import { hashSenha } from '../auth/senha';
 
-export async function semearAdmin(): Promise<void> {
+export async function semearAdmin(pool?: Pool): Promise<boolean> {
   const email = process.env.ADMIN_EMAIL;
   const senha = process.env.ADMIN_SENHA;
-  if (!email || !senha) {
-    console.warn('ADMIN_EMAIL/ADMIN_SENHA não definidos: conta admin não criada.');
-    return;
-  }
-  const pool = getPool();
-  const { rowCount } = await pool.query(
+  if (!email || !senha) return false;
+  const p = pool ?? getPool();
+  const { rowCount } = await p.query(
     `INSERT INTO contas (email, senha_hash, role, saldo_revisoes)
      VALUES ($1, $2, 'admin', 0)
      ON CONFLICT (email) DO NOTHING`,
     [email.toLowerCase().trim(), await hashSenha(senha)],
   );
-  if (rowCount) console.log(`Conta admin criada: ${email}`);
+  return (rowCount ?? 0) > 0;
 }
 ```
 
-Call it at the end of `aplicarMigracoes`, after the loop, and in the CLI entry. Add a test to `test/db/contas.test.ts`:
+`semearAdmin` stays silent: the callers log. In the CLI entry of `lib/db/migrate.ts`:
+
+```ts
+const criada = await semearAdmin();
+if (criada) console.log(`Conta admin criada: ${process.env.ADMIN_EMAIL}`);
+```
+
+and the same shape in `instrumentation.ts` in Task 14. Test output must be pristine, so no logging inside a repository or seed function.
+
+Call it from the CLI entry of `lib/db/migrate.ts` (the entry written in Task 1, extended here) and from `instrumentation.ts` in Task 14. Do not call it from inside `aplicarMigracoes`: `aplicarMigracoes` is used by the test helper, which truncates the tables between cases, and a seed inside it would fight the tests. Pass the helper's pool in the test, so the seed does not depend on an import-order side effect. Add a test to `test/db/contas.test.ts`:
 
 ```ts
 test('semearAdmin cria a conta admin e não duplica', async () => {
@@ -871,8 +879,10 @@ export function assinarToken(contaId: string, role: Role, expiraEm?: number): st
 
 export function verificarToken(token: string): { sub: string; role: Role } | null {
   try {
-    const payload = jwt.verify(token, segredo()) as jwt.Payload;
-    return { sub: String(payload.sub), role: payload.role as Role };
+    const payload = jwt.verify(token, segredo()) as jwt.JwtPayload;
+    if (!payload.sub) return null;
+    if (payload.role !== 'user' && payload.role !== 'admin') return null;
+    return { sub: String(payload.sub), role: payload.role };
   } catch {
     return null;
   }
@@ -1570,8 +1580,11 @@ git commit -m "feat: repositório de revisões escopado por conta"
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { NextRequest } from 'next/server';
 import { pool, prepararBanco, limparTabelas } from './helper';
-import { register } from '../../app/api/auth/register/route';
-import { login } from '../../app/api/auth/login/route';
+// Um route.ts do App Router pode exportar apenas os métodos HTTP e o segment
+// config; um export extra quebra `next build` pelo check de tipos gerado em
+// .next/types. O alias fica no teste, não no arquivo de rota.
+import { POST as register } from '../../app/api/auth/register/route';
+import { POST as login } from '../../app/api/auth/login/route';
 import { verificarToken } from '../../lib/auth/jwt';
 
 process.env.JWT_SECRET = 'segredo-de-teste-com-pelo-menos-32-caracteres';
@@ -2196,11 +2209,14 @@ test('apiFetch sem token não envia header', async () => {
   expect(visto?.get('authorization')).toBeNull();
 });
 
-test('401 limpa o token', async () => {
+test('401 limpa o token e pede o redirect', async () => {
   guardarToken('abc');
+  const assign = vi.fn();
+  Object.defineProperty(window, 'location', { value: { assign }, configurable: true });
   vi.stubGlobal('fetch', async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response);
   await apiFetch('/api/conta');
   expect(lerToken()).toBeNull();
+  expect(assign).toHaveBeenCalledWith('/login');
 });
 ```
 
@@ -2239,8 +2255,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   const res = await fetch(input, { ...init, headers });
   if (res.status === 401) {
     limparToken();
-    // Redireciona só no navegador. Em jsdom window.location.href é read-only,
-    // então o teste verifica apenas que o token foi limpo.
+    // assign, não href: href é read-only em jsdom e o teste pode espiá-lo.
     if (typeof window !== 'undefined' && typeof window.location.assign === 'function') {
       window.location.assign('/login');
     }
@@ -2253,11 +2268,16 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
 
 In `components/RevisaoForm.tsx`, `app/page.tsx`, `app/estudar/[id]/page.tsx` and `app/resultado/[id]/page.tsx`, change `fetch(` to `apiFetch(` and add `import { apiFetch } from '@/lib/client/api';`.
 
+The routes now return the renamed shapes (Task 7's types), so the pages that read the old field names must be updated in this task: `app/page.tsx` imports `Sessao` (rename to `Revisao`) and reads `s.criada_em` (rename to `s.criado_em`); `components/QuestaoCard.tsx` does `JSON.parse(questao.opcoes_json)` and must read `questao.opcoes` directly, since the repository returns `string[]`. Without these two changes the home page shows "Invalid Date" and the question card throws at runtime.
+
 In `components/RevisaoForm.tsx`, handle 402 explicitly before the generic error:
 
 ```ts
 if (res.status === 402) {
   setError((await res.json()).error);
+  // Ruling Y: sem isto, `carregando` continua true e o componente renderiza
+  // <LoadingQuestoes />, escondendo a mensagem que a spec exige mostrar.
+  setCarregando(false);
   return;
 }
 ```
@@ -2367,10 +2387,14 @@ test('GET /api/conta mostra o plano do último resgate', async () => {
   const admin = await createConta('admin@example.com', 'hash', 0);
   const [t1] = await gerarLote(admin.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
   const [t2] = await gerarLote(admin.id, 'familia', 1, new Date(Date.now() + 30 * 86400000));
-  const conta = await createConta('ana@example.com', 'hash', 3);
-  await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: t1.codigo }));
-  await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: t2.codigo }));
-  const res = await get('http://localhost/api/conta', conta.id);
+  // `aluna`, não `conta`: `conta` é a rota importada que este teste chama.
+  const aluna = await createConta('ana@example.com', 'hash', 3);
+  // O movimento de registro é escrito pela rota de registro, não por createConta,
+  // então o fixture grava essa linha: os 3 movimentos são registro + 2 resgates.
+  await comTransacao(async (client) => { await registrarMovimento(client, aluna.id, 'registro', 3); });
+  await resgate(post('http://localhost/api/tokens/resgate', aluna.id, { codigo: t1.codigo }));
+  await resgate(post('http://localhost/api/tokens/resgate', aluna.id, { codigo: t2.codigo }));
+  const res = await conta(get('http://localhost/api/conta', aluna.id));
   const data = await res.json();
   expect(data.plano).toBe('familia');
   expect(data.saldo).toBe(73);
@@ -2378,8 +2402,8 @@ test('GET /api/conta mostra o plano do último resgate', async () => {
 });
 
 test('conta sem resgate mostra plano free', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
-  const res = await get('http://localhost/api/conta', conta.id);
+  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const res = await conta(get('http://localhost/api/conta', aluna.id));
   expect((await res.json()).plano).toBe('free');
 });
 ```
@@ -2528,8 +2552,10 @@ const semHeader = (method: 'GET' | 'POST') =>
 
 test('conta comum não acessa a área admin', async () => {
   const conta = await createConta('ana@example.com', 'hash', 3);
-  expect((await listar(conta.id, 'user')).status).toBe(403);
-  expect((await gerar(conta.id, 'user', { plano_codigo: 'pro', quantidade: 1 })).status).toBe(403);
+  // Os handlers recebem uma NextRequest, não a conta id: o helper `req()` monta o
+  // request com o Bearer da conta.
+  expect((await listar(req(conta.id, 'user'))).status).toBe(403);
+  expect((await gerar(req(conta.id, 'user', { plano_codigo: 'pro', quantidade: 1 }))).status).toBe(403);
 });
 
 test('sem token responde 401', async () => {
@@ -2539,7 +2565,7 @@ test('sem token responde 401', async () => {
 
 test('admin gera lote de tokens', async () => {
   const admin = await createConta('admin@example.com', 'hash', 0);
-  const res = await gerar(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 5 });
+  const res = await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 5 }));
   expect(res.status).toBe(201);
   const data = await res.json();
   expect(data.tokens).toHaveLength(5);
@@ -2548,14 +2574,14 @@ test('admin gera lote de tokens', async () => {
 
 test('quantidade inválida responde 400', async () => {
   const admin = await createConta('admin@example.com', 'hash', 0);
-  expect((await gerar(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 0 })).status).toBe(400);
-  expect((await gerar(admin.id, 'admin', { plano_codigo: 'inexistente', quantidade: 1 })).status).toBe(400);
+  expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 0 }))).status).toBe(400);
+  expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'inexistente', quantidade: 1 }))).status).toBe(400);
 });
 
 test('listar mostra status derivado e quem resgatou', async () => {
   const admin = await createConta('admin@example.com', 'hash', 0);
-  await gerar(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 2 });
-  const res = await listar(admin.id, 'admin');
+  await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 2 }));
+  const res = await listar(req(admin.id, 'admin'));
   const tokens = await res.json();
   expect(tokens).toHaveLength(2);
   expect(tokens[0].status).toBe('disponivel');
@@ -2578,27 +2604,21 @@ Expected: FAIL, the route does not exist.
 ```ts
 import { NextRequest, NextResponse } from 'next/server';
 import { autenticar, naoAutorizado, naoAdministrador } from '@/lib/auth/guard';
-import { gerarLote, listarTokens } from '@/lib/repos/tokens';
-import { getPool } from '@/lib/db/pool';
+import { gerarLote, listarTokensComEmail, planoExiste } from '@/lib/repos/tokens';
 
 const EXPIRACAO_PADRAO_DIAS = 30;
 
+// Ruling GG: `planos` é tabela de referência, não enum no código (spec linha 76).
+// A validação consulta a tabela pela função do repositório `planoExiste`
+// (lib/repos/tokens.ts), porque nenhum SQL pode ficar fora dos repositórios.
 export async function GET(req: NextRequest) {
   const auth = await autenticar(req);
   if (!auth) return naoAutorizado();
   if (auth.role !== 'admin') return naoAdministrador();
 
-  const { rows } = await getPool().query(
-    `SELECT t.id, t.codigo, t.plano_codigo,
-            CASE WHEN t.resgatado_por IS NOT NULL THEN 'resgatado'
-                 WHEN t.expira_em < now() THEN 'expirado'
-                 ELSE 'disponivel' END AS status,
-            t.expira_em, t.resgatado_por, t.resgatado_em, t.criado_em,
-            c.email AS resgatado_por_email
-     FROM tokens t LEFT JOIN contas c ON c.id = t.resgatado_por
-     ORDER BY t.criado_em DESC`
-  );
-  return NextResponse.json(rows);
+  // Ruling DD: nenhum SQL na rota. O join do email e o CASE do status ficam no
+  // repositório (`listarTokensComEmail`, que reusa `colunas()`), e a rota chama a função.
+  return NextResponse.json(await listarTokensComEmail());
 }
 
 export async function POST(req: NextRequest) {
@@ -2606,17 +2626,23 @@ export async function POST(req: NextRequest) {
   if (!auth) return naoAutorizado();
   if (auth.role !== 'admin') return naoAdministrador();
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await req.json().catch(() => ({}))) ?? {};
   const planoCodigo = String(body.plano_codigo ?? '').trim().toLowerCase();
   const quantidade = Number(body.quantidade);
-  const dias = Number(body.expira_em_dias) || EXPIRACAO_PADRAO_DIAS;
+  const dias = body.expira_em_dias === undefined ? EXPIRACAO_PADRAO_DIAS : Number(body.expira_em_dias);
 
-  const planos = ['free', 'pro', 'familia'];
-  if (!planos.includes(planoCodigo)) {
+  // Ruling GG: `planos` é tabela de referência, não enum no código (spec linha 76).
+  if (!(await planoExiste(planoCodigo))) {
     return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });
   }
   if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 100) {
     return NextResponse.json({ error: 'Quantidade entre 1 e 100.' }, { status: 400 });
+  }
+  // Ruling HH: `expira_em_dias` entra na restrição global de 400 para input inválido.
+  // Sem isto, 0/'abc' viram o default silencioso e um valor negativo gera tokens já
+  // expirados, sem erro.
+  if (!Number.isInteger(dias) || dias < 1 || dias > 365) {
+    return NextResponse.json({ error: 'Expiração entre 1 e 365 dias.' }, { status: 400 });
   }
 
   const expiraEm = new Date(Date.now() + dias * 86400000);

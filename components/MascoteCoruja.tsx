@@ -5,19 +5,25 @@ export type HumorCoruja = 'neutro' | 'feliz' | 'pensando' | 'triste' | 'celebran
 interface MascoteCorujaProps {
   humor?: HumorCoruja;
   className?: string;
+  // Decorativa: o SVG é enfeite ao lado de um texto que já diz o que é. Sem role/label
+  // ele não entra na árvore de acessibilidade, senão o nome do heading fica duplicado.
+  decorative?: boolean;
 }
 
 /**
  * Corujinha "Professora Coruja", mascote do app.
  * Renderiza um SVG com expressões diferentes conforme o humor.
  */
-export default function MascoteCoruja({ humor = 'neutro', className = '' }: MascoteCorujaProps) {
+export default function MascoteCoruja({
+  humor = 'neutro', className = '', decorative = false,
+}: MascoteCorujaProps) {
   return (
     <svg
       viewBox="0 0 120 120"
       className={className}
-      role="img"
-      aria-label={`Corujinha ${humor}`}
+      role={decorative ? 'presentation' : 'img'}
+      aria-label={decorative ? undefined : `Corujinha ${humor}`}
+      aria-hidden={decorative || undefined}
     >
       {/* Asas */}
       <ellipse cx="22" cy="72" rx="14" ry="22" fill="#5B3FD4" />

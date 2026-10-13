@@ -19,7 +19,11 @@ const MAX_TENTATIVAS_LLM = 3;
 // o modelo devolve dados já validados contra o schema, sem parse JSON manual.
 const llm = new ChatOpenAI({
   model: LLM_MODEL,
-  apiKey: LLM_API_KEY
+  apiKey: LLM_API_KEY,
+  // Sem baseURL o cliente aponta para api.openai.com, o que gera 401 mesmo com
+  // uma chave "dummy": o servidor local não exige chave, mas a OpenAI exige.
+  // baseURL só é aceito dentro de configuration (não é campo direto de ChatOpenAIFields).
+  configuration: { baseURL: LLM_BASE_URL }
 });
 
 function esperar(ms: number): Promise<void> {

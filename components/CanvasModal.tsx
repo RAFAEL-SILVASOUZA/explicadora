@@ -75,7 +75,7 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     setHasContent(false);
   };
-
+  
   const sendDrawing = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;

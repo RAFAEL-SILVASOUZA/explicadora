@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { POST as criarRevisao } from '../../app/api/revisao/route';
 import { GET as lerRevisao } from '../../app/api/revisao/[id]/route';
-import { GET as listar } from '../../app/api/sessoes/route';
+import { GET as listar } from '../../app/api/revisoes/route';
 import { createConta } from '../../lib/repos/contas';
 import { criarRevisao as criarRevisaoNoBanco } from '../../lib/repos/revisoes';
 import { assinarToken } from '../../lib/auth/jwt';
