@@ -2,6 +2,8 @@ export type Role = 'user' | 'admin';
 
 export interface Conta {
   id: string;
+  nome: string;
+  sobrenome: string;
   email: string;
   role: Role;
   saldo_revisoes: number;

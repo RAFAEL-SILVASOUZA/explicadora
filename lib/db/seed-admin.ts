@@ -9,12 +9,14 @@ export async function semearAdmin(pool?: Pool): Promise<boolean> {
   const email = process.env.ADMIN_EMAIL;
   const senha = process.env.ADMIN_SENHA;
   if (!email || !senha) return false;
+  const nome = (process.env.ADMIN_NOME ?? 'Admin').trim();
+  const sobrenome = (process.env.ADMIN_SOBRENOME ?? 'Estudo Divertido').trim();
   const p = pool ?? getPool();
   const { rowCount } = await p.query(
-    `INSERT INTO contas (email, senha_hash, role, saldo_revisoes)
-     VALUES ($1, $2, 'admin', 0)
+    `INSERT INTO contas (nome, sobrenome, email, senha_hash, role, saldo_revisoes)
+     VALUES ($1, $2, $3, $4, 'admin', 0)
      ON CONFLICT (email) DO NOTHING`,
-    [email.toLowerCase().trim(), await hashSenha(senha)],
+    [nome, sobrenome, email.toLowerCase().trim(), await hashSenha(senha)],
   );
   return Boolean(rowCount);
 }

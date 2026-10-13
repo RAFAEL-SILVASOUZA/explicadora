@@ -11,7 +11,7 @@ afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
 
 test('createConta grava a conta com o saldo pedido', async () => {
-  const conta = await createConta('ana@example.com', await hashSenha('abc123'), 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', await hashSenha('abc123'), 3);
   expect(conta.email).toBe('ana@example.com');
   expect(conta.role).toBe('user');
   expect(conta.saldo_revisoes).toBe(3);
@@ -19,8 +19,8 @@ test('createConta grava a conta com o saldo pedido', async () => {
 
 test('email duplicado cai na constraint unique', async () => {
   const hash = await hashSenha('abc123');
-  await createConta('ana@example.com', hash, 3);
-  await expect(createConta('ana@example.com', hash, 3)).rejects.toThrow(/duplicate key/);
+  await createConta('Ana', 'Souza', 'ana@example.com', hash, 3);
+  await expect(createConta('Ana', 'Souza', 'ana@example.com', hash, 3)).rejects.toThrow(/duplicate key/);
 });
 
 test('findContaByEmail devolve null para email inexistente', async () => {
@@ -28,13 +28,13 @@ test('findContaByEmail devolve null para email inexistente', async () => {
 });
 
 test('findContaById devolve a conta criada', async () => {
-  const conta = await createConta('ana@example.com', await hashSenha('abc123'), 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', await hashSenha('abc123'), 3);
   const achada = await findContaById(conta.id);
   expect(achada?.id).toBe(conta.id);
 });
 
 test('saldo nunca fica negativo', async () => {
-  const conta = await createConta('ana@example.com', await hashSenha('abc123'), 0);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', await hashSenha('abc123'), 0);
   await expect(
     pool.query('UPDATE contas SET saldo_revisoes = -1 WHERE id = $1', [conta.id])
   ).rejects.toThrow(/check constraint/);
@@ -54,7 +54,7 @@ test('semearAdmin cria a conta admin e não duplica', async () => {
 
 test('email é normalizado na escrita e na leitura', async () => {
   const hash = await hashSenha('abc123');
-  const conta = await createConta(' Ana@Example.com ', hash, 3);
+  const conta = await createConta('Ana', 'Souza', ' Ana@Example.com ', hash, 3);
   expect(conta.email).toBe('ana@example.com');
   const achada = await findContaByEmail(' ANA@example.com ');
   expect(achada?.id).toBe(conta.id);
@@ -62,7 +62,7 @@ test('email é normalizado na escrita e na leitura', async () => {
 });
 
 test('quantidade dos movimentos sobrevive como delta assinado', async () => {
-  const conta = await createConta('ana@example.com', await hashSenha('abc123'), 0);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', await hashSenha('abc123'), 0);
   const client = await pool.connect();
   try {
     await registrarMovimento(client, conta.id, 'registro', 3);

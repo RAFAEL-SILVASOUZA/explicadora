@@ -27,9 +27,9 @@ const get = (url: string, contaId: string) =>
   new NextRequest(url, { headers: { Authorization: `Bearer ${assinarToken(contaId, 'user')}` } });
 
 test('resgate soma as revisões e responde 200', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const [token] = await gerarLote(admin.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res = await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: token.codigo }));
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ plano: 'pro', revisoes: 20, novoSaldo: 23 });
@@ -43,34 +43,34 @@ test('resgate sem token responde 401', async () => {
 });
 
 test('resgate de código inexistente responde 404', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res = await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: 'PRO-AAAA-AAAA' }));
   expect(res.status).toBe(404);
 });
 
 test('resgate duplicado responde 409', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const [token] = await gerarLote(admin.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: token.codigo }));
   const res = await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: token.codigo }));
   expect(res.status).toBe(409);
 });
 
 test('resgate expirado responde 410', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const [token] = await gerarLote(admin.id, 'pro', 1, new Date(Date.now() - 1000));
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res = await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: token.codigo }));
   expect(res.status).toBe(410);
 });
 
 test('GET /api/conta mostra o plano do último resgate', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const [t1] = await gerarLote(admin.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
   const [t2] = await gerarLote(admin.id, 'familia', 1, new Date(Date.now() + 30 * 86400000));
   // `aluna` em vez de `conta`: `conta` é a rota importada, que este teste chama.
-  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   // O movimento de registro é escrito pela rota de registro, não por createConta.
   // O fixture grava essa linha para que os 3 movimentos sejam registro + 2 resgates.
   await comTransacao(async (client) => { await registrarMovimento(client, aluna.id, 'registro', 3); });
@@ -84,7 +84,7 @@ test('GET /api/conta mostra o plano do último resgate', async () => {
 });
 
 test('conta sem resgate mostra plano free', async () => {
-  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res = await conta(get('http://localhost/api/conta', aluna.id));
   expect((await res.json()).plano).toBe('free');
 });

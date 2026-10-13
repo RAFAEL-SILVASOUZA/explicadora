@@ -41,7 +41,7 @@ test('sem token responde 401', async () => {
 });
 
 test('com saldo, cria revisão, consome 1 e grava o movimento', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const form = new FormData();
   form.set('texto', 'Sistema solar');
   const req = new NextRequest('http://localhost/api/revisao', {
@@ -60,7 +60,7 @@ test('com saldo, cria revisão, consome 1 e grava o movimento', async () => {
 });
 
 test('saldo esgotado responde 402 e não cria revisão', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 0);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   const form = new FormData();
   form.set('texto', 'Sistema solar');
   const req = new NextRequest('http://localhost/api/revisao', {
@@ -76,16 +76,16 @@ test('saldo esgotado responde 402 e não cria revisão', async () => {
 });
 
 test('conta A não lê revisão de conta B pela rota', async () => {
-  const a = await createConta('ana@example.com', 'hash', 3);
-  const b = await createConta('bob@example.com', 'hash', 3);
+  const a = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'Teste', 'bob@example.com', 'hash', 3);
   const id = await criarRevisaoNoBanco(pool, a.id, 'x', null);
   const res = await lerRevisao(reqComToken(b.id), { params: { id } });
   expect(res.status).toBe(404);
 });
 
 test('listar mostra só as revisões da conta', async () => {
-  const a = await createConta('ana@example.com', 'hash', 3);
-  const b = await createConta('bob@example.com', 'hash', 3);
+  const a = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'Teste', 'bob@example.com', 'hash', 3);
   await criarRevisaoNoBanco(pool, a.id, 'de ana', null);
   const res = await listar(reqComToken(b.id));
   expect((await res.json())).toHaveLength(0);
@@ -102,7 +102,7 @@ const postComChave = (contaId: string, chave: string) => {
 };
 
 test('POST com X-Idempotency-Key grava a chave na revisão', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res = await criarRevisao(postComChave(conta.id, 'chave-abc'));
   expect(res.status).toBe(200);
   const { id } = await res.json();
@@ -111,7 +111,7 @@ test('POST com X-Idempotency-Key grava a chave na revisão', async () => {
 });
 
 test('reenvio com a mesma chave devolve a mesma revisão sem debitar de novo', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res1 = await criarRevisao(postComChave(conta.id, 'chave-abc'));
   const id1 = (await res1.json()).id;
 
@@ -128,7 +128,7 @@ test('reenvio com a mesma chave devolve a mesma revisão sem debitar de novo', a
 });
 
 test('corrida com a mesma chave debita exatamente uma vez', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const [res1, res2] = await Promise.all([
     criarRevisao(postComChave(conta.id, 'chave-abc')),
     criarRevisao(postComChave(conta.id, 'chave-abc')),
@@ -142,7 +142,7 @@ test('corrida com a mesma chave debita exatamente uma vez', async () => {
 });
 
 test('GET /api/revisoes inclui a chave de idempotência na resposta', async () => {
-  const a = await createConta('ana@example.com', 'hash', 3);
+  const a = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   await criarRevisaoNoBanco(pool, a.id, 'de ana', null, 'chave-abc');
   const res = await listar(reqComToken(a.id));
   const linha = (await res.json())[0];
@@ -150,7 +150,7 @@ test('GET /api/revisoes inclui a chave de idempotência na resposta', async () =
 });
 
 test('LLM falha com chave pendente: nada persistido, nada debitado', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   gerarQuestoes.mockRejectedValueOnce(new Error('LLM offline'));
   const res = await criarRevisao(postComChave(conta.id, 'chave-abc'));
   expect(res.status).toBe(500);

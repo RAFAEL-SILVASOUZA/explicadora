@@ -40,7 +40,7 @@ const prepararRevisao = async (contaId: string) => {
 };
 
 test('avancar debita 1 no commit e vincula o movimento à revisão', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const id = await prepararRevisao(conta.id);
 
   const res = await avancar(reqComToken(conta.id, `/api/revisao/${id}/avancar`), { params: { id } });
@@ -58,7 +58,7 @@ test('avancar debita 1 no commit e vincula o movimento à revisão', async () =>
 });
 
 test('avancar com saldo 0 responde 402 e não cria questões', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 0);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   const id = await prepararRevisao(conta.id);
 
   const res = await avancar(reqComToken(conta.id, `/api/revisao/${id}/avancar`), { params: { id } });
@@ -73,7 +73,7 @@ test('avancar com saldo 0 responde 402 e não cria questões', async () => {
 // qualquer jeito. Depois do fix, ele prova que o débito do commit é devolvido quando
 // a LLM falha — o comportamento que o fix não pode quebrar.
 test('avancar com LLM falha: rollback, sem débito e sem questões', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const id = await prepararRevisao(conta.id);
   gerarQuestoesFocadas.mockRejectedValueOnce(new Error('LLM offline'));
 

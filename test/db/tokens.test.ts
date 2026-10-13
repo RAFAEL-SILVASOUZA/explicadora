@@ -15,8 +15,8 @@ beforeAll(async () => { await prepararBanco(); });
 afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
 
-const admin = () => createConta('admin@example.com', 'hash', 0);
-const usuario = (email: string) => createConta(email, 'hash', 0);
+const admin = () => createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
+const usuario = (email: string) => createConta('Aluna', 'Teste', email, 'hash', 0);
 
 test('gerarLote cria N tokens do plano pedido', async () => {
   const a = await admin();
@@ -101,7 +101,7 @@ test('listarTokens mostra o status derivado, nunca armazenado', async () => {
 test('usada conta só o crédito daquele resgate, não o consumo anterior a ele', async () => {
   const a = await admin();
   const [token] = await gerarLote(a.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   await comTransacao((c) => registrarMovimento(c, aluna.id, 'registro', 3));
   for (let i = 0; i < 2; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
   await resgateToken(token.codigo, aluna.id);
@@ -113,7 +113,7 @@ test('usada conta só o crédito daquele resgate, não o consumo anterior a ele'
 test('revogarToken estorna o que não foi usado quando o uso é de até 2', async () => {
   const a = await admin();
   const [token] = await gerarLote(a.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   await resgateToken(token.codigo, aluna.id);
   for (let i = 0; i < 2; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
   // O estorno devolve o que sobra, e o saldo fica em 0: as 2 usadas já viraram revisão.
@@ -132,7 +132,7 @@ test('revogarToken estorna o que não foi usado quando o uso é de até 2', asyn
 test('revogarToken recusa quando o aluno usou mais de 2 créditos do token', async () => {
   const a = await admin();
   const [token] = await gerarLote(a.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   await resgateToken(token.codigo, aluna.id);
   for (let i = 0; i < 3; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
   expect(await revogarToken(token.id)).toEqual({ ok: false, motivo: 'limite_de_uso', usados: 3 });
@@ -144,7 +144,7 @@ test('revogarToken recusa código que nunca foi resgatado e código já revogado
   const a = await admin();
   const [token] = await gerarLote(a.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
   expect(await revogarToken(token.id)).toEqual({ ok: false, motivo: 'nao_resgatado' });
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   await resgateToken(token.codigo, aluna.id);
   await revogarToken(token.id);
   expect(await revogarToken(token.id)).toEqual({ ok: false, motivo: 'ja_revogado' });
@@ -153,7 +153,7 @@ test('revogarToken recusa código que nunca foi resgatado e código já revogado
 test('listarTokensComEmail mostra o status revogado e a quantidade usada', async () => {
   const a = await admin();
   const [token] = await gerarLote(a.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   await resgateToken(token.codigo, aluna.id);
   await comTransacao((c) => consumirSaldo(c, aluna.id));
   await revogarToken(token.id);
@@ -165,7 +165,7 @@ test('listarTokensComEmail mostra o status revogado e a quantidade usada', async
 test('excluirToken remove só código que nunca foi usado', async () => {
   const a = await admin();
   const [livre, usado] = await gerarLote(a.id, 'pro', 2, new Date(Date.now() + 30 * 86400000));
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   await resgateToken(usado.codigo, aluna.id);
   expect(await excluirToken(usado.id)).toEqual({ ok: false, motivo: 'ja_usado' });
   expect(await excluirToken(livre.id)).toEqual({ ok: true });

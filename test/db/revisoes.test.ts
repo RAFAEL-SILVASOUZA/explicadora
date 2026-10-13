@@ -11,7 +11,7 @@ beforeAll(async () => { await prepararBanco(); });
 afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
 
-const conta = (email: string) => createConta(email, 'hash', 3);
+const conta = (email: string) => createConta('Aluna', 'Teste', email, 'hash', 3);
 
 test('criarRevisao liga a revisão à conta', async () => {
   const c = await conta('ana@example.com');

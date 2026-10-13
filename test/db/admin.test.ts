@@ -37,7 +37,7 @@ const chamada = (contaId: string, role: 'user' | 'admin', id: string, method: 'P
   }), { params: { id } }] as const;
 
 test('conta comum não acessa a área admin', async () => {
-  const conta = await createConta('ana@example.com', 'hash', 3);
+  const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   expect((await listar(req(conta.id, 'user'))).status).toBe(403);
   expect((await gerar(req(conta.id, 'user', { plano_codigo: 'pro', quantidade: 1 }))).status).toBe(403);
 });
@@ -48,7 +48,7 @@ test('sem token responde 401', async () => {
 });
 
 test('admin gera lote de tokens', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const res = await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 5 }));
   expect(res.status).toBe(201);
   const data = await res.json();
@@ -57,7 +57,7 @@ test('admin gera lote de tokens', async () => {
 });
 
 test('quantidade inválida responde 400', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 0 }))).status).toBe(400);
   expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'inexistente', quantidade: 1 }))).status).toBe(400);
 });
@@ -65,12 +65,12 @@ test('quantidade inválida responde 400', async () => {
 // Ruling HH: `expira_em_dias` entra na restrição global de 400 para input inválido.
 // Antes do fix, 0 caía no `|| EXPIRACAO_PADRAO_DIAS` e virava um token de 30 dias (201).
 test('expira_em_dias inválido responde 400', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   expect((await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1, expira_em_dias: 0 }))).status).toBe(400);
 });
 
 test('listar mostra status derivado e quem resgatou', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 2 }));
   const res = await listar(req(admin.id, 'admin'));
   const tokens = await res.json();
@@ -82,8 +82,8 @@ test('listar mostra status derivado e quem resgatou', async () => {
 // O teste acima declara "quem resgatou" mas só afirma que ainda não resgatou ninguém.
 // Este cobre o join que a interface do GET promete (`resgatado_por_email`).
 test('listar mostra o email de quem resgatou', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
-  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const resGerado = await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }));
   const { tokens } = await resGerado.json();
   await resgateToken(tokens[0].codigo, aluna.id);
@@ -95,23 +95,23 @@ test('listar mostra o email de quem resgatou', async () => {
 });
 
 test('free não gera lote', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const res = await gerar(req(admin.id, 'admin', { plano_codigo: 'free', quantidade: 1 }));
   expect(res.status).toBe(400);
   expect((await res.json()).error).toContain('Free');
 });
 
 test('conta comum não revoga nem exclui um código', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
-  const aluna = await createConta('ana@example.com', 'hash', 3);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }))).json();
   expect((await revogar(...chamada(aluna.id, 'user', tokens[0].id, 'POST'))).status).toBe(403);
   expect((await excluir(...chamada(aluna.id, 'user', tokens[0].id, 'DELETE'))).status).toBe(403);
 });
 
 test('revogação responde 409 quando o aluno passou do limite de uso do token', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }))).json();
   await resgateToken(tokens[0].codigo, aluna.id);
   for (let i = 0; i < 3; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
@@ -121,8 +121,8 @@ test('revogação responde 409 quando o aluno passou do limite de uso do token',
 });
 
 test('revogação pelo admin estorna o que sobra e mostra o quanto foi usado', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 1 }))).json();
   await resgateToken(tokens[0].codigo, aluna.id);
   await comTransacao((c) => consumirSaldo(c, aluna.id));
@@ -135,8 +135,8 @@ test('revogação pelo admin estorna o que sobra e mostra o quanto foi usado', a
 });
 
 test('exclusão pelo admin só aceita código que ainda não foi usado', async () => {
-  const admin = await createConta('admin@example.com', 'hash', 0);
-  const aluna = await createConta('ana@example.com', 'hash', 0);
+  const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
+  const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 0);
   const { tokens } = await (await gerar(req(admin.id, 'admin', { plano_codigo: 'pro', quantidade: 2 }))).json();
   await resgateToken(tokens[0].codigo, aluna.id);
   expect((await excluir(...chamada(admin.id, 'admin', tokens[0].id, 'DELETE'))).status).toBe(409);

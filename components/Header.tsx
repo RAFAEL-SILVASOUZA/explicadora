@@ -11,6 +11,8 @@ import Mascote from './Mascote';
 
 interface Sessao {
   role: 'user' | 'admin';
+  nome: string;
+  sobrenome: string;
   saldo_revisoes: number;
 }
 
@@ -32,7 +34,14 @@ export default function Header() {
     apiFetch('/api/conta')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.conta) setSessao({ role: data.conta.role, saldo_revisoes: data.conta.saldo_revisoes });
+        if (data?.conta) {
+          setSessao({
+            role: data.conta.role,
+            nome: data.conta.nome,
+            sobrenome: data.conta.sobrenome,
+            saldo_revisoes: data.conta.saldo_revisoes,
+          });
+        }
       })
       .catch(() => {});
   }, []);
@@ -51,9 +60,12 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-primary/15">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+        {/* Logado, o slot da marca mostra o nome da pessoa; sem sessão, o nome do app. */}
         <Link href="/" className="flex items-center gap-2 font-extrabold text-primary text-lg">
           <Mascote humor="feliz" className="w-8 h-8 shrink-0" decorative />
-          Estudo Divertido
+          <span className="truncate max-w-[14rem]">
+            {sessao ? [sessao.nome, sessao.sobrenome].filter(Boolean).join(' ') : 'Estudo Divertido'}
+          </span>
         </Link>
 
         <nav aria-label="Navegação principal" className="ml-auto flex items-center gap-1 flex-wrap">
