@@ -15,6 +15,11 @@ interface Movimento {
   tipo: 'registro' | 'resgate' | 'consumo' | 'revogacao';
   quantidade: number;
   plano_codigo: string | null;
+  // A API /api/conta devolve os vínculos do movimento (extratoConta seleciona
+  // m.dever_id/m.revisao_id): é o que permite ao extrato distinguir consumo de
+  // dever de consumo de revisão.
+  dever_id?: string | null;
+  revisao_id?: string | null;
   criado_em: string;
 }
 
@@ -30,6 +35,13 @@ const TIPO_TEXTO: Record<Movimento['tipo'], string> = {
   consumo: 'Revisão gerada',
   revogacao: 'Código revogado',
 };
+
+// Um consumo vinculado a um dever (dever_id preenchido em movimentos_saldo) foi
+// gerado por um dever explicado, não por uma revisão (spec §6.1).
+function rotuloDoMovimento(movimento: Movimento): string {
+  if (movimento.tipo === 'consumo' && movimento.dever_id) return 'Dever explicado';
+  return TIPO_TEXTO[movimento.tipo];
+}
 
 export default function Creditos() {
   const router = useRouter();
@@ -110,7 +122,7 @@ export default function Creditos() {
                 <tbody>
                   {dados.movimentos.map((m, i) => (
                     <tr key={i} className="border-t border-ink/10">
-                      <td className="py-2">{TIPO_TEXTO[m.tipo]}</td>
+                      <td className="py-2">{rotuloDoMovimento(m)}</td>
                       <td className={`py-2 font-bold ${m.quantidade > 0 ? 'text-success-ink' : 'text-danger-ink'}`}>
                         {m.quantidade > 0 ? `+${m.quantidade}` : m.quantidade}
                       </td>

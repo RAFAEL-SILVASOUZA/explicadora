@@ -66,6 +66,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
     if (!passo) return;
     let url: string | null = null;
     let audio: HTMLAudioElement | null = null;
+    let temporizador: ReturnType<typeof setTimeout> | null = null;
     let cancelado = false;
 
     setTocando(false);
@@ -78,7 +79,13 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
           if (u) URL.revokeObjectURL(u);
           return;
         }
-        if (!u) return;
+        if (!u) {
+          // Download falhou (rede/401): sem áudio o passo não pode congelar no frame
+          // inicial, então o desenho roda pelo tempo estimado e para sozinho.
+          setTocando(true);
+          temporizador = setTimeout(() => setTocando(false), duracaoMs);
+          return;
+        }
         url = u;
         audio = new Audio(u);
         audioRef.current = audio;
@@ -94,6 +101,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
     return () => {
       cancelado = true;
+      if (temporizador) clearTimeout(temporizador);
       if (audio) { audio.pause(); audio.src = ''; }
       if (url) URL.revokeObjectURL(url);
       audioRef.current = null;
@@ -120,13 +128,14 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
   function alternar() {
     // Pausa/retoma também o áudio real; sem isso a fala continua com o desenho congelado.
+    // Não reinicia o relógio do canvas: assim pausa congela e retoma desenho e áudio
+    // do mesmo ponto (reiniciar aqui faria o desenho recomeçar com a voz atrasada).
     if (tocando) {
       audioRef.current?.pause();
     } else {
       audioRef.current?.play().catch(() => {});
     }
     setTocando((atual) => !atual);
-    setChaveReinicio((c) => c + 1);
   }
 
   function repetir() {
@@ -135,6 +144,9 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     }
+    // Se o passo já tinha terminado ('ended' zerou tocando), o canvas só acumula
+    // tempo com tocando=true: sem isto a voz toca e o desenho fica parado.
+    setTocando(true);
     setChaveReinicio((c) => c + 1);
   }
 
@@ -204,13 +216,6 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
         {mostrarTranscricao && (
           <section aria-label="Texto da explicação">
             <TranscricaoDever passos={dados.passos} />
-          </section>
-        )}
-
-        {dados.dever.resumo_para_pais && (
-          <section className="card">
-            <h2 className="font-extrabold text-ink mb-2">Para o responsável</h2>
-            <p className="text-ink/70">{dados.dever.resumo_para_pais}</p>
           </section>
         )}
 

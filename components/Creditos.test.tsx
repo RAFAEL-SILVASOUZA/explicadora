@@ -46,6 +46,32 @@ test('a área de créditos reúne saldo, planos, resgate e extrato numa tela só
   expect(screen.getByText('Revisão gerada')).toBeTruthy();
 });
 
+test('extrato distingue consumo de dever explicado de consumo de revisão', async () => {
+  localStorage.setItem('estudo_token', 'token-de-teste');
+  vi.stubGlobal('fetch', async (url: string) => {
+    if (url === '/api/planos') {
+      return { ok: true, json: async () => [{ codigo: 'pro', nome: 'Pro', revisoes: 20, preco_cents: 500 }] } as Response;
+    }
+    if (url === '/api/conta') {
+      return {
+        ok: true,
+        json: async () => ({
+          ...contaResposta,
+          movimentos: [
+            { tipo: 'consumo', quantidade: -1, plano_codigo: null, dever_id: 'dever-1', revisao_id: null, criado_em: '2026-10-12T12:00:00Z' },
+            { tipo: 'consumo', quantidade: -1, plano_codigo: null, dever_id: null, revisao_id: 'rev-1', criado_em: '2026-10-13T12:00:00Z' },
+          ],
+        }),
+      } as Response;
+    }
+    return { ok: true, json: async () => ({}) } as Response;
+  });
+  render(<Creditos />);
+  const extrato = screen.getByText('Extrato dos créditos').closest('section');
+  await waitFor(() => expect(within(extrato as HTMLElement).getByText('Dever explicado')).toBeTruthy());
+  expect(within(extrato as HTMLElement).getByText('Revisão gerada')).toBeTruthy();
+});
+
 test('resgatar envia o código e mostra o novo saldo', async () => {
   const user = userEvent.setup();
   localStorage.setItem('estudo_token', 'token-de-teste');
