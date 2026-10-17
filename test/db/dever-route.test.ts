@@ -37,7 +37,7 @@ const storyboardFixo = {
 beforeAll(async () => { await prepararBanco(); });
 beforeEach(() => {
   gerarStoryboardSeguro.mockReset();
-  gerarStoryboardSeguro.mockImplementation(async () => ({ storyboard: storyboardFixo, vazamentosCorrigidos: 0 }));
+  gerarStoryboardSeguro.mockImplementation(async () => ({ storyboard: storyboardFixo, vazamentoNaoCorrigido: false }));
   sintetizarPassos.mockReset();
   sintetizarPassos.mockImplementation(async (deverId: string, passos: { ordem: number }[]) =>
     passos.map((p) => ({ ordem: p.ordem, caminho: `uploads/deveres/${deverId}/${p.ordem}.wav`, duracao_ms: 2000 })));

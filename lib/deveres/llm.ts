@@ -2,7 +2,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import { ImagemProcessada } from '../llm';
 import {
-  PassoSchema, StoryboardSchema, Storyboard, sanitizarStoryboard, type Passo,
+  PassoSchema, StoryboardSchema, Storyboard, sanitizarStoryboard, type Cena, type Passo, type Primitivo,
 } from './cena';
 import {
   PROMPT_AUDITORIA, PROMPT_CONTEXTO_DEVER, PROMPT_REGENERAR_PASSO, PROMPT_STORYBOARD,
@@ -97,11 +97,16 @@ async function regenerarPasso(
   return { ...sb, passos };
 }
 
-// Strings que o renderizador desenha na tela da criança. Um `texto.valor` = '42'
-// ou um rótulo com a conta resolvida entrega o resultado mesmo com narração
-// inocente, então a auditoria (spec §4.2: ver o storyboard inteiro) precisa ler a
-// cena também. Defensivo de propósito: um primitivo malformado vindo do modelo
-// não pode derrubar a auditoria, só é ignorado.
+// O que o renderizador desenha na tela da criança: strings E números. Um
+// `texto.valor` = '42' ou um rótulo com a conta resolvida entrega o resultado
+// mesmo com narração inocente, então a auditoria (spec §4.2: ver o storyboard
+// inteiro) precisa ler a cena também. Os campos numéricos desenháveis entram
+// como texto porque o canvas os imprime: `reta_numerica.marcas` vira
+// `String(marca)` e `destaque` um ponto numerado (desenho.ts:79, 82-88),
+// `blocos.itens` é uma contagem visível de objetos (desenho.ts:151-156) e
+// `barra_modelo.partes[].valor` define larguras proporcionais (desenho.ts:100-103).
+// Defensivo de propósito: um primitivo malformado vindo do modelo não pode
+// derrubar a auditoria, só é ignorado.
 function stringsDaCena(cena: unknown): string[] {
   const saida: string[] = [];
   const primitivos = (cena as { primitivos?: unknown } | null)?.primitivos;
@@ -115,14 +120,22 @@ function stringsDaCena(cena: unknown): string[] {
         if (typeof pr.valor === 'string') saida.push(pr.valor);
         break;
       case 'reta_numerica':
-        // No schema as marcas são números; a única string é o rótulo da reta.
+        // Além do rótulo, as marcas e o destaque são números impressos na tela.
         if (typeof pr.rotulo === 'string') saida.push(pr.rotulo);
+        if (Array.isArray(pr.marcas)) {
+          const marcas = pr.marcas.filter((m) => typeof m === 'number' && Number.isFinite(m));
+          if (marcas.length > 0) saida.push(`marcas: ${marcas.join(' ')}`);
+        }
+        if (typeof pr.destaque === 'number' && Number.isFinite(pr.destaque)) {
+          saida.push(`destaque: ${pr.destaque}`);
+        }
         break;
       case 'barra_modelo':
         if (Array.isArray(pr.partes)) {
           for (const parte of pr.partes) {
-            const rotulo = (parte as { rotulo?: unknown } | null)?.rotulo;
-            if (typeof rotulo === 'string') saida.push(rotulo);
+            const pt = parte as { rotulo?: unknown; valor?: unknown } | null;
+            if (typeof pt?.rotulo === 'string') saida.push(pt.rotulo);
+            if (typeof pt?.valor === 'number' && Number.isFinite(pt.valor)) saida.push(String(pt.valor));
           }
         }
         break;
@@ -136,6 +149,12 @@ function stringsDaCena(cena: unknown): string[] {
           }
         }
         break;
+      case 'blocos':
+        // A contagem de objetos é o que a criança vê: itens: 7 mostra sete formas.
+        if (typeof pr.itens === 'number' && Number.isFinite(pr.itens)) {
+          saida.push(`itens: ${pr.itens}`);
+        }
+        break;
     }
   }
   return saida.filter((s) => s.trim() !== '');
@@ -143,9 +162,14 @@ function stringsDaCena(cena: unknown): string[] {
 
 export async function revisarVazamento(storyboard: Storyboard): Promise<VazamentoResultado> {
   const alvo = llm.withStructuredOutput(VazamentoSchema, { name: 'auditar_vazamento' });
-  const explicacao = storyboard.passos
-    .map((p, i) => `${i + 1}. ${p.titulo}: ${p.narracao} | tela: ${stringsDaCena(p.cena).join(' ')}`)
-    .join('\n');
+  // O título do storyboard vira o <h1> da tela da criança: um 'A resposta é 42'
+  // entrega o resultado sem passar por nenhum passo, então entra no topo da auditoria.
+  const explicacao = [
+    `Título: ${storyboard.titulo}`,
+    ...storyboard.passos.map(
+      (p, i) => `${i + 1}. ${p.titulo}: ${p.narracao} | tela: ${stringsDaCena(p.cena).join(' ')}`,
+    ),
+  ].join('\n');
   const messages = [
     { role: 'system', content: PROMPT_AUDITORIA },
     { role: 'user', content: explicacao },
@@ -162,10 +186,65 @@ export function aplicarNarracaoNeutra(sb: Storyboard, ordem: number): Storyboard
   return { ...sb, passos };
 }
 
+// Um primitivo da cena reescrito para a degradação, ou null para descartá-lo.
+// Só mexe no que o renderizador imprime (stringsDaCena); formas geométricas
+// mudas continuam ensinando.
+function neutralizarPrimitivo(p: Record<string, unknown>): Record<string, unknown> | null {
+  switch (p.kind) {
+    case 'texto':
+    case 'emoji':
+      // Carregam a string reveladora direto na tela.
+      return null;
+    case 'reta_numerica': {
+      const saida: Record<string, unknown> = { ...p, marcas: [] as number[] };
+      delete saida.destaque;
+      return saida;
+    }
+    case 'blocos':
+      // A contagem visível vira o mínimo do schema (1), não o número da resposta.
+      return { ...p, itens: 1 };
+    case 'barra_modelo': {
+      if (!Array.isArray(p.partes)) return p;
+      const partes = p.partes.map((parte) => (
+        parte && typeof parte === 'object' ? { ...(parte as Record<string, unknown>), valor: 0 } : parte
+      ));
+      return { ...p, partes };
+    }
+    default:
+      return p;
+  }
+}
+
+// Degradação final: além da fala fixa, limpa a cena do passo. Trocar só a
+// narração deixaria visível o vazamento que a auditoria acabou de apontar na
+// tela (texto '42', marca 42 na reta, sete blocos). Defensivo: a cena veio do
+// modelo; um primitivo malformado é preservado como está, nunca derruba a
+// degradação que devolve o dever pago pelo pai.
+export function neutralizarPasso(sb: Storyboard, ordem: number): Storyboard {
+  if (ordem < 1 || ordem > sb.passos.length) return sb;
+  const passos = sb.passos.slice();
+  const passo = passos[ordem - 1];
+  const primitivos: Primitivo[] = [];
+  for (const p of passo?.cena?.primitivos ?? []) {
+    try {
+      const neutro = neutralizarPrimitivo(p as unknown as Record<string, unknown>);
+      if (neutro) primitivos.push(neutro as unknown as Primitivo);
+    } catch {
+      primitivos.push(p);
+    }
+  }
+  passos[ordem - 1] = {
+    ...passo,
+    narracao: FRASE_NEUTRA,
+    cena: { ...(passo?.cena ?? {}), primitivos } as Cena,
+  };
+  return { ...sb, passos };
+}
+
 // Duas camadas (spec §4.2): o prompt pede, a auditoria verifica. O laço alterna
 // auditoria e regeneração até MAX_TENTATIVAS_VAZAMENTO regenerações. Se ainda
-// vazar, degrada: mantém o desenho e troca a fala pela frase fixa, em vez de
-// descartar o dever que o pai pagou para criar.
+// vazar, degrada: neutraliza o passo (fala fixa + cena sem o que revela), em vez
+// de descartar o dever que o pai pagou para criar.
 export async function gerarStoryboardSeguro(
   conteudoTexto: string, imagens: ImagemProcessada[],
 ): Promise<{ storyboard: Storyboard; vazamentoNaoCorrigido: boolean }> {
@@ -180,14 +259,23 @@ export async function gerarStoryboardSeguro(
     const indiceValido = Number.isInteger(auditoria.passo)
       && auditoria.passo >= 1
       && auditoria.passo <= storyboard.passos.length;
-    if (!auditoria.vaza_resposta || !indiceValido) {
+    if (!auditoria.vaza_resposta) {
+      return { storyboard: sanitizarStoryboard(storyboard), vazamentoNaoCorrigido: false };
+    }
+    if (!indiceValido) {
+      // Vazamento reportado mas sem índice usável: não há como regenerar nem
+      // neutralizar um passo. Logar para o ramo não passar silencioso como
+      // "não vaza" no log do servidor.
+      console.warn(
+        `[deveres] vazamento reportado com índice inválido (${auditoria.passo}) não regenerado: ${auditoria.motivo}`,
+      );
       return { storyboard: sanitizarStoryboard(storyboard), vazamentoNaoCorrigido: false };
     }
 
     if (tentativa === MAX_TENTATIVAS_VAZAMENTO) {
       console.warn(`[deveres] vazamento não corrigido no passo ${auditoria.passo}: ${auditoria.motivo}`);
       return {
-        storyboard: sanitizarStoryboard(aplicarNarracaoNeutra(storyboard, auditoria.passo)),
+        storyboard: sanitizarStoryboard(neutralizarPasso(storyboard, auditoria.passo)),
         vazamentoNaoCorrigido: true,
       };
     }

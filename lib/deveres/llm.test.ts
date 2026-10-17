@@ -83,7 +83,7 @@ describe('gerarStoryboardSeguro', () => {
     expect(r.storyboard.passos[0].narracao).toBe('Vamos entender o que a questão pede.');
   });
 
-  it('após esgotar as tentativas troca a narração pela frase neutra e mantém a cena', async () => {
+  it('após esgotar as tentativas neutraliza o passo: frase neutra e cena sem o que revela', async () => {
     const substituto = {
       titulo: 'Passo 1', narracao: 'Continua vazando.',
       cena: { fundo: '#FDF6EC', primitivos: [{ kind: 'circulo', x: 0.5, y: 0.5, r: 0.2, cor: '#7C5CFC' }] },
@@ -99,7 +99,7 @@ describe('gerarStoryboardSeguro', () => {
     const r = await gerarStoryboardSeguro('dever', []);
     expect(r.vazamentoNaoCorrigido).toBe(true);
     expect(r.storyboard.passos[0].narracao).toBe(FRASE_NEUTRA);
-    // A cena do passo sobrevive à degradação: o desenho continua ensinando.
+    // A forma muda sobrevive à degradação: o desenho continua ensinando.
     expect(r.storyboard.passos[0].cena.primitivos).toHaveLength(1);
     expect(r.storyboard.passos[1].narracao).not.toBe(FRASE_NEUTRA);
   });
@@ -135,6 +135,98 @@ describe('gerarStoryboardSeguro', () => {
     expect(input).toContain('três mais quatro igual a sete');
     expect(input).toContain('3 + 4');
     expect(input).toContain('Vamos entender o que a questão pede.');
+  });
+
+  // Finding P77 da revisão broad: o renderizador imprime números (desenho.ts:79
+  // desenha String(marca); 82-88 marca um ponto numerado). Uma reta com marcas
+  // [42] e destaque 42 mostra o 42 na tela mesmo com narração inocente.
+  it('a auditoria recebe os números desenháveis da cena', async () => {
+    const sb = cenaCom([
+      { kind: 'reta_numerica', x: 0.1, y: 0.5, w: 0.8, minimo: 0, maximo: 50, marcas: [42], destaque: 42, rotulo: 'reta' },
+      { kind: 'blocos', x: 0.1, y: 0.7, w: 0.4, colunas: 2, itens: 42 },
+      { kind: 'barra_modelo', x: 0.1, y: 0.9, w: 0.8, h: 0.2, partes: [{ valor: 42, rotulo: 'parte' }] },
+    ]);
+    invokeStructured
+      .mockResolvedValueOnce(sb)
+      .mockResolvedValue({ vaza_resposta: false, passo: 0, motivo: '' });
+
+    await gerarStoryboardSeguro('dever', []);
+    const input = inputDaAuditoria();
+    expect(input).toContain('marcas: 42');
+    expect(input).toContain('destaque: 42');
+    expect(input).toContain('itens: 42');
+    // O valor da parte da barra define a largura proporcional desenhada.
+    expect(input).toContain('42');
+  });
+
+  // Finding P79 da revisão broad: o título do storyboard vira o <h1> da tela da
+  // criança. Um 'A resposta é 42' entrega o resultado sem passar por nenhum passo.
+  it('a auditoria recebe o título do storyboard', async () => {
+    const sb = storyboardValido(1);
+    sb.titulo = 'A resposta é 42';
+    invokeStructured
+      .mockResolvedValueOnce(sb)
+      .mockResolvedValue({ vaza_resposta: false, passo: 0, motivo: '' });
+
+    await gerarStoryboardSeguro('dever', []);
+    const input = inputDaAuditoria();
+    expect(input).toContain('Título: A resposta é 42');
+    // O título auditado vem antes dos passos.
+    expect(input.indexOf('Título:')).toBeLessThan(input.indexOf('1. Passo 1'));
+  });
+
+  // Finding P78 da revisão broad: trocar só a narração manteria visível o
+  // vazamento que a auditoria apontou na cena. A degradação limpa a cena do passo.
+  it('a degradação remove da cena os primitivos que revelam o resultado', async () => {
+    // O passo regenerado continua vazando na cena: é ele que a degradação neutraliza.
+    const passoVazando = {
+      titulo: 'Passo 1', narracao: 'Continua vazando.',
+      cena: {
+        fundo: '#FDF6EC',
+        primitivos: [
+          { kind: 'texto', x: 0.1, y: 0.2, valor: '42', tamanho: 0.1 },
+          { kind: 'emoji', x: 0.3, y: 0.2, valor: '🎉', tamanho: 0.1 },
+          { kind: 'reta_numerica', x: 0.1, y: 0.5, w: 0.8, minimo: 0, maximo: 50, marcas: [42], destaque: 42, rotulo: 'reta' },
+          { kind: 'blocos', x: 0.1, y: 0.7, w: 0.4, colunas: 2, itens: 42 },
+          { kind: 'barra_modelo', x: 0.1, y: 0.9, w: 0.8, h: 0.2, partes: [{ valor: 42, rotulo: 'quarenta e dois' }] },
+          { kind: 'circulo', x: 0.8, y: 0.5, r: 0.1, cor: '#7C5CFC' },
+        ],
+      },
+    };
+    invokeStructured
+      .mockResolvedValueOnce(storyboardValido(1))                                 // gerar
+      .mockResolvedValueOnce({ vaza_resposta: true, passo: 1, motivo: 'a' })      // auditoria 1
+      .mockResolvedValueOnce(passoVazando)                                        // regenerar 1
+      .mockResolvedValueOnce({ vaza_resposta: true, passo: 1, motivo: 'b' })      // auditoria 2
+      .mockResolvedValueOnce(passoVazando)                                        // regenerar 2
+      .mockResolvedValue({ vaza_resposta: true, passo: 1, motivo: 'c' });         // auditoria 3
+
+    const r = await gerarStoryboardSeguro('dever', []);
+    expect(r.vazamentoNaoCorrigido).toBe(true);
+    expect(r.storyboard.passos[0].narracao).toBe(FRASE_NEUTRA);
+
+    const kinds = r.storyboard.passos[0].cena.primitivos.map((p) => p.kind);
+    // texto e emoji carregam a string reveladora: descartados.
+    expect(kinds).not.toContain('texto');
+    expect(kinds).not.toContain('emoji');
+    // A forma muda sobrevive: o desenho continua ensinando.
+    expect(kinds).toContain('circulo');
+
+    const reta = r.storyboard.passos[0].cena.primitivos
+      .find((p) => p.kind === 'reta_numerica') as Extract<Primitivos[number], { kind: 'reta_numerica' }>;
+    expect(reta.marcas).toEqual([]);
+    expect(reta.destaque).toBeUndefined();
+
+    const blocos = r.storyboard.passos[0].cena.primitivos
+      .find((p) => p.kind === 'blocos') as Extract<Primitivos[number], { kind: 'blocos' }>;
+    expect(blocos.itens).toBe(1);
+
+    const barra = r.storyboard.passos[0].cena.primitivos
+      .find((p) => p.kind === 'barra_modelo') as Extract<Primitivos[number], { kind: 'barra_modelo' }>;
+    expect(barra.partes.map((parte) => parte.valor)).toEqual([0]);
+
+    // Nenhum 42 sobrevive na cena neutralizada.
+    expect(JSON.stringify(r.storyboard.passos[0].cena)).not.toContain('42');
   });
 
   // Finding da revisão: `auditoria.passo` vem do LLM. Fora de [1, passos.length]
