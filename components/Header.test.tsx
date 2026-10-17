@@ -26,3 +26,8 @@ test('mostra "Estudo Divertido" quando não há sessão', async () => {
   render(<Header />);
   expect(screen.getByText('Estudo Divertido')).toBeTruthy();
 });
+
+test('tem o link Deveres na navegação', () => {
+  render(<Header />);
+  expect(screen.getByRole('link', { name: /deveres/i })).toBeTruthy();
+});
