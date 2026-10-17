@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     if (resultado.status === 402) {
       return NextResponse.json(
-        { error: 'Você usou seus créditos. Resgate um token para continuar.' },
+        { error: 'Você usou suas revisões. Resgate um token para continuar.' },
         { status: 402 },
       );
     }
