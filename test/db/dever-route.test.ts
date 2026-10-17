@@ -1,8 +1,14 @@
 // @vitest-environment node
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { POST as criarDever } from '../../app/api/dever/route';
+import { GET as listarDeveres } from '../../app/api/deveres/route';
+import { GET as lerDever } from '../../app/api/dever/[id]/route';
+import { GET as lerAudio } from '../../app/api/dever/[id]/audio/[ordem]/route';
+import { criarDever as criarDeverRepo, criarPassos } from '../../lib/repos/deveres';
 import { createConta } from '../../lib/repos/contas';
 import { assinarToken } from '../../lib/auth/jwt';
 
@@ -133,4 +139,68 @@ test('sem áudio (Piper ausente) cria o dever com audio_path nulo', async () => 
   const passos = await pool.query('SELECT audio_path, duracao_ms FROM dever_passos WHERE dever_id = $1', [id]);
   expect(passos.rows[0].audio_path).toBeNull();
   expect(passos.rows[0].duracao_ms).toBeNull();
+});
+
+const reqComToken = (contaId: string) =>
+  new NextRequest('http://localhost/api/deveres', {
+    headers: { Authorization: `Bearer ${assinarToken(contaId, 'user')}` },
+  });
+
+test('GET /api/deveres mostra só os deveres da conta', async () => {
+  const a = await createConta('Ana', 'S', 'd8@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'T', 'd9@example.com', 'hash', 3);
+  await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
+  const res = await listarDeveres(reqComToken(b.id));
+  expect(await res.json()).toHaveLength(0);
+});
+
+test('GET /api/dever/[id] devolve dever e passos ordenados', async () => {
+  const a = await createConta('Ana', 'S', 'd10@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: 'Matemática', conteudo_texto: 'x', resumo_para_pais: null });
+  await criarPassos(pool, id, [
+    { ordem: 1, titulo: 'Primeiro', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
+    { ordem: 2, titulo: 'Depois', narracao: 'b', cena, audio_path: null, duracao_ms: 2000 },
+  ]);
+  const res = await lerDever(reqComToken(a.id), { params: { id } });
+  const corpo = await res.json();
+  expect(res.status).toBe(200);
+  expect(corpo.dever.disciplina).toBe('Matemática');
+  expect(corpo.passos.map((p: { titulo: string }) => p.titulo)).toEqual(['Primeiro', 'Depois']);
+});
+
+test('conta B não lê dever de A', async () => {
+  const a = await createConta('Ana', 'S', 'd11@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'T', 'd12@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
+  const res = await lerDever(reqComToken(b.id), { params: { id } });
+  expect(res.status).toBe(404);
+});
+
+test('GET de áudio exige posse e devolve o WAV', async () => {
+  const a = await createConta('Ana', 'S', 'd13@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'T', 'd14@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
+  const relativo = `uploads/deveres/${id}/1.wav`;
+  await fs.mkdir(path.join(process.cwd(), 'uploads', 'deveres', id), { recursive: true });
+  await fs.writeFile(path.join(process.cwd(), relativo), Buffer.from('RIFF-dados'));
+
+  await criarPassos(pool, id, [
+    { ordem: 1, titulo: 'a', narracao: 'a', cena, audio_path: relativo, duracao_ms: 1000 },
+  ]);
+
+  const resA = await lerAudio(reqComToken(a.id), { params: { id, ordem: '1' } });
+  expect(resA.status).toBe(200);
+  expect(resA.headers.get('content-type')).toBe('audio/wav');
+
+  const resB = await lerAudio(reqComToken(b.id), { params: { id, ordem: '1' } });
+  expect(resB.status).toBe(404);
+
+  await fs.rm(path.join(process.cwd(), 'uploads', 'deveres', id), { recursive: true, force: true });
+});
+
+test('áudio de passo inexistente responde 404', async () => {
+  const a = await createConta('Ana', 'S', 'd15@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
+  const res = await lerAudio(reqComToken(a.id), { params: { id, ordem: '9' } });
+  expect(res.status).toBe(404);
 });
