@@ -8,7 +8,7 @@ export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // `migrations` fica fora da lista: é o registro permanente das migrações aplicadas,
 // não dados de teste.
-const TABELAS = ['contas', 'planos', 'lotes', 'tokens', 'revisoes', 'questoes', 'respostas', 'movimentos_saldo'];
+const TABELAS = ['contas', 'planos', 'lotes', 'tokens', 'revisoes', 'questoes', 'respostas', 'movimentos_saldo', 'deveres', 'dever_passos'];
 
 // Os três planos do negócio, os mesmos valores de migrations/001_initial.sql.
 const PLANOS: Array<[string, string, number, number]> = [

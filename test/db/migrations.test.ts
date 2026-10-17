@@ -11,7 +11,8 @@ test('migração cria as tabelas do modelo', async () => {
      WHERE table_schema = 'public' ORDER BY table_name`
   );
   expect(rows.map(r => r.table_name)).toEqual([
-    'contas', 'lotes', 'migrations', 'movimentos_saldo', 'planos', 'questoes', 'respostas', 'revisoes', 'tokens',
+    'contas', 'dever_passos', 'deveres', 'lotes', 'migrations', 'movimentos_saldo',
+    'planos', 'questoes', 'respostas', 'revisoes', 'tokens',
   ]);
 });
 
@@ -33,4 +34,26 @@ test('migração é idempotente', async () => {
 test('aplicarMigracoes registra as migrações aplicadas', async () => {
   const { rows } = await pool.query('SELECT name FROM migrations');
   expect(rows.map(r => r.name)).toContain('001_initial.sql');
+});
+
+test('migração 005 cria a chave única parcial de deveres', async () => {
+  await pool.query(
+    `INSERT INTO contas (nome, sobrenome, email, senha_hash) VALUES ('A','B','chave@teste.com','h')`
+  );
+  const { rows: contaRows } = await pool.query(`SELECT id FROM contas WHERE email = 'chave@teste.com'`);
+  const contaId = contaRows[0].id;
+
+  await pool.query(
+    `INSERT INTO deveres (conta_id, conteudo_texto, chave_idempotencia) VALUES ($1, 'x', 'k1')`,
+    [contaId],
+  );
+  await expect(
+    pool.query(`INSERT INTO deveres (conta_id, conteudo_texto, chave_idempotencia) VALUES ($1, 'x', 'k1')`, [contaId]),
+  ).rejects.toThrow();
+
+  // chave nula não colide: dois deveres sem chave convivem
+  await pool.query(`INSERT INTO deveres (conta_id, conteudo_texto) VALUES ($1, 'y')`, [contaId]);
+  await pool.query(`INSERT INTO deveres (conta_id, conteudo_texto) VALUES ($1, 'z')`, [contaId]);
+  const { rows } = await pool.query(`SELECT count(*)::int AS c FROM deveres WHERE conta_id = $1`, [contaId]);
+  expect(rows[0].c).toBe(3);
 });
