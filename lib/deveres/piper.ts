@@ -12,8 +12,14 @@ export interface AudioPasso {
   duracao_ms: number | null;
 }
 
+// O id do dever vem do banco (uuid), mas o caminho é montado a partir dele: um id
+// forjado ('../../etc') escreveria fora de uploads/deveres/. Validar antes de
+// montar qualquer caminho (defesa em profundidade, o custo é uma regex).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Relativo a process.cwd(), o mesmo critério de uploads/ em app/api/revisao/route.ts.
 // Fica fora de public/ de propósito: public/ é servido sem autenticação.
+// A validação do deverId acontece em sintetizarPassos, antes de montar o caminho.
 export function caminhoDoAudio(deverId: string, ordem: number): string {
   return path.join('uploads', 'deveres', deverId, `${ordem}.wav`);
 }
@@ -33,11 +39,16 @@ async function sintetizarUm(narracao: string, destinoAbsoluto: string): Promise<
     '--model', process.env.PIPER_MODEL as string,
     '--output_file', destinoAbsoluto,
   ], { timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
-  // No teste o execFile é mock e não devolve child (por isso o ?.); em produção
-  // p.child é o ChildProcess real. Engolir EPIPE do stdin não mascara nada: a
-  // falha do Piper chega pela rejeição da promessa (código de saída != 0).
-  p.child?.stdin?.on('error', () => {});
-  p.child?.stdin?.end(narracao);
+  // Engolir EPIPE do stdin não mascara nada: a falha do Piper chega pela rejeição
+  // da promessa (código de saída != 0). Mas child/stdin ausentes não podem ser
+  // tolerados com ?.: o Piper esperaria texto no stdin até o timeout de 60s em
+  // silêncio. Sem stdin o passo é tratado como falha (cai no catch do chamador).
+  const stdin = p.child?.stdin;
+  if (!stdin) {
+    throw new Error('Piper: processo filho sem stdin disponível (falha ao iniciar)');
+  }
+  stdin.on('error', () => {});
+  stdin.end(narracao);
   await p;
 }
 
@@ -50,6 +61,13 @@ export async function sintetizarPassos(
 ): Promise<AudioPasso[]> {
   if (!piperDisponivel()) {
     console.warn('[deveres] Piper não configurado (PIPER_BIN/PIPER_MODEL): dever criado sem áudio.');
+    return passos.map((p) => ({ ordem: p.ordem, caminho: '', duracao_ms: null }));
+  }
+
+  if (!UUID_RE.test(deverId)) {
+    // deverId fora do formato uuid: não montar caminho (risco de path traversal).
+    // Todos os passos ficam sem áudio, como na degradação por passo.
+    console.error(`[deveres] deverId inválido (não é uuid): nenhum áudio gerado.`);
     return passos.map((p) => ({ ordem: p.ordem, caminho: '', duracao_ms: null }));
   }
 
