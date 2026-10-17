@@ -7,7 +7,8 @@ import {
 } from '../../lib/repos/deveres';
 import { comTransacao } from '../../lib/repos/transacao';
 import { consumirSaldo } from '../../lib/quota';
-import { vincularMovimentoADever } from '../../lib/repos/movimentos';
+import { vincularMovimentoADever, vincularMovimentoARevisao } from '../../lib/repos/movimentos';
+import { criarRevisao } from '../../lib/repos/revisoes';
 
 beforeAll(async () => { await prepararBanco(); });
 afterEach(async () => { await limparTabelas(); });
@@ -110,6 +111,45 @@ test('vincularMovimentoADever liga o consumo ao dever', async () => {
     [conta.id],
   );
   expect(rows[0].quantidade).toBe(-1);
+  expect(rows[0].revisao_id).toBeNull();
+  expect(rows[0].dever_id).toBeTruthy();
+});
+
+// Finding P92 da re-verificação broad: `vincularMovimentoARevisao` ganhou
+// `AND dever_id IS NULL` (movimentos.ts:30), espelhando vincularMovimentoADever.
+// Sem essa cláusula, a próxima revisão da conta roubaria o consumo já vinculado a
+// um dever, corrompendo o extrato. O teste é a prova simétrica do anterior: o
+// movimento fica com dever_id preenchido e revisao_id nulo, e o vínculo de revisão
+// subsequente não pode tocá-lo.
+test('vincularMovimentoARevisao não captura um movimento já vinculado a um dever', async () => {
+  const conta = await createConta('Ana', 'S', 'ana7@example.com', 'hash', 3);
+  // A FK movimentos_saldo.revisao_id -> revisoes(id) (migrations/001_initial.sql:72)
+  // exige uma revisão real: um uuid aleatório daria erro de FK no UPDATE.
+  const revisaoId = await criarRevisao(pool, conta.id, 'Sistema solar', null);
+
+  await comTransacao(async (client) => {
+    const saldo = await consumirSaldo(client, conta.id);
+    expect(saldo).toBe(2);
+    const deverId = await criarDever(client, conta.id, {
+      titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null,
+    });
+    await vincularMovimentoADever(client, conta.id, deverId);
+  });
+
+  // A revisão chega depois, fora da transação do dever: é exatamente o caso em que
+  // o UPDATE sem `dever_id IS NULL` capturaria o consumo alheio.
+  await comTransacao(async (client) => {
+    await vincularMovimentoARevisao(client, conta.id, revisaoId);
+  });
+
+  const { rows } = await pool.query(
+    'SELECT tipo, quantidade, dever_id, revisao_id FROM movimentos_saldo WHERE conta_id = $1',
+    [conta.id],
+  );
+  expect(rows).toHaveLength(1);
+  expect(rows[0].tipo).toBe('consumo');
+  expect(rows[0].quantidade).toBe(-1);
+  // O vínculo de revisão não tocou o movimento do dever.
   expect(rows[0].revisao_id).toBeNull();
   expect(rows[0].dever_id).toBeTruthy();
 });

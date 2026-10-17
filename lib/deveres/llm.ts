@@ -196,7 +196,9 @@ function neutralizarPrimitivo(p: Record<string, unknown>): Record<string, unknow
       // Carregam a string reveladora direto na tela.
       return null;
     case 'reta_numerica': {
-      const saida: Record<string, unknown> = { ...p, marcas: [] as number[] };
+      // Finding P91: o rotulo da reta é impresso (stringsDaCena o coleta), então
+      // zerar só marcas/destaque deixaria 'quarenta e dois' na tela.
+      const saida: Record<string, unknown> = { ...p, marcas: [] as number[], rotulo: '' };
       delete saida.destaque;
       return saida;
     }
@@ -204,11 +206,16 @@ function neutralizarPrimitivo(p: Record<string, unknown>): Record<string, unknow
       // A contagem visível vira o mínimo do schema (1), não o número da resposta.
       return { ...p, itens: 1 };
     case 'barra_modelo': {
-      if (!Array.isArray(p.partes)) return p;
-      const partes = p.partes.map((parte) => (
-        parte && typeof parte === 'object' ? { ...(parte as Record<string, unknown>), valor: 0 } : parte
+      // Finding P91: desenho.ts:105-110 desenha parte.rotulo dentro da barra. Um
+      // rotulo com a resposta por extenso sobreviveria a zerar só os valores.
+      const saida: Record<string, unknown> = { ...p, rotulo: '' };
+      if (!Array.isArray(p.partes)) return saida;
+      saida.partes = p.partes.map((parte) => (
+        parte && typeof parte === 'object'
+          ? { ...(parte as Record<string, unknown>), valor: 0, rotulo: '' }
+          : parte
       ));
-      return { ...p, partes };
+      return saida;
     }
     default:
       return p;

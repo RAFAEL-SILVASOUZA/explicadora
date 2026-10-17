@@ -186,9 +186,9 @@ describe('gerarStoryboardSeguro', () => {
         primitivos: [
           { kind: 'texto', x: 0.1, y: 0.2, valor: '42', tamanho: 0.1 },
           { kind: 'emoji', x: 0.3, y: 0.2, valor: '🎉', tamanho: 0.1 },
-          { kind: 'reta_numerica', x: 0.1, y: 0.5, w: 0.8, minimo: 0, maximo: 50, marcas: [42], destaque: 42, rotulo: 'reta' },
+          { kind: 'reta_numerica', x: 0.1, y: 0.5, w: 0.8, minimo: 0, maximo: 50, marcas: [42], destaque: 42, rotulo: 'quarenta e dois' },
           { kind: 'blocos', x: 0.1, y: 0.7, w: 0.4, colunas: 2, itens: 42 },
-          { kind: 'barra_modelo', x: 0.1, y: 0.9, w: 0.8, h: 0.2, partes: [{ valor: 42, rotulo: 'quarenta e dois' }] },
+          { kind: 'barra_modelo', x: 0.1, y: 0.9, w: 0.8, h: 0.2, rotulo: 'quarenta e dois', partes: [{ valor: 42, rotulo: 'quarenta e dois' }] },
           { kind: 'circulo', x: 0.8, y: 0.5, r: 0.1, cor: '#7C5CFC' },
         ],
       },
@@ -216,6 +216,9 @@ describe('gerarStoryboardSeguro', () => {
       .find((p) => p.kind === 'reta_numerica') as Extract<Primitivos[number], { kind: 'reta_numerica' }>;
     expect(reta.marcas).toEqual([]);
     expect(reta.destaque).toBeUndefined();
+    // Finding P91: o rotulo da reta é impresso (stringsDaCena o coleta), então a
+    // degradação precisa zerá-lo também.
+    expect(reta.rotulo).toBe('');
 
     const blocos = r.storyboard.passos[0].cena.primitivos
       .find((p) => p.kind === 'blocos') as Extract<Primitivos[number], { kind: 'blocos' }>;
@@ -224,9 +227,17 @@ describe('gerarStoryboardSeguro', () => {
     const barra = r.storyboard.passos[0].cena.primitivos
       .find((p) => p.kind === 'barra_modelo') as Extract<Primitivos[number], { kind: 'barra_modelo' }>;
     expect(barra.partes.map((parte) => parte.valor)).toEqual([0]);
+    // Finding P91: desenho.ts:105-110 imprime parte.rotulo dentro da barra; um
+    // rotulo 'quarenta e dois' entregaria a resposta por extenso à criança.
+    expect(barra.partes.map((parte) => parte.rotulo)).toEqual(['']);
+    // O rotulo solto da primitiva (fora do schema, mas preservado pela sanitização)
+    // também é zerado.
+    expect((barra as unknown as { rotulo?: unknown }).rotulo).toBe('');
 
-    // Nenhum 42 sobrevive na cena neutralizada.
-    expect(JSON.stringify(r.storyboard.passos[0].cena)).not.toContain('42');
+    // Nenhum 42 nem a resposta por extenso sobrevivem na cena neutralizada.
+    const cenaNeutralizada = JSON.stringify(r.storyboard.passos[0].cena);
+    expect(cenaNeutralizada).not.toContain('42');
+    expect(cenaNeutralizada).not.toContain('quarenta');
   });
 
   // Finding da revisão: `auditoria.passo` vem do LLM. Fora de [1, passos.length]
