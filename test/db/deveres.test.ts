@@ -5,6 +5,9 @@ import { createConta } from '../../lib/repos/contas';
 import {
   criarDever, criarPassos, getDever, getDeverPorChave, getPassos, listarDeveresComResumo,
 } from '../../lib/repos/deveres';
+import { comTransacao } from '../../lib/repos/transacao';
+import { consumirSaldo } from '../../lib/quota';
+import { vincularMovimentoADever } from '../../lib/repos/movimentos';
 
 beforeAll(async () => { await prepararBanco(); });
 afterEach(async () => { await limparTabelas(); });
@@ -89,4 +92,24 @@ test('a mesma chave em contas diferentes coexistem (unicidade por conta)', async
   expect(idA).not.toBe(idB);
   expect((await getDeverPorChave(pool, a.id, 'chave-compartilhada'))?.id).toBe(idA);
   expect((await getDeverPorChave(pool, b.id, 'chave-compartilhada'))?.id).toBe(idB);
+});
+
+test('vincularMovimentoADever liga o consumo ao dever', async () => {
+  const conta = await createConta('Ana', 'S', 'ana6@example.com', 'hash', 3);
+  await comTransacao(async (client) => {
+    const saldo = await consumirSaldo(client, conta.id);
+    expect(saldo).toBe(2);
+    const id = await criarDever(client, conta.id, {
+      titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null,
+    });
+    await vincularMovimentoADever(client, conta.id, id);
+  });
+
+  const { rows } = await pool.query(
+    'SELECT tipo, quantidade, dever_id, revisao_id FROM movimentos_saldo WHERE conta_id = $1',
+    [conta.id],
+  );
+  expect(rows[0].quantidade).toBe(-1);
+  expect(rows[0].revisao_id).toBeNull();
+  expect(rows[0].dever_id).toBeTruthy();
 });
