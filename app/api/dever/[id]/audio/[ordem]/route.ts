@@ -27,7 +27,14 @@ export async function GET(
   try {
     const buffer = await fs.readFile(path.join(process.cwd(), passo.audio_path));
     return new NextResponse(new Uint8Array(buffer), {
-      headers: { 'content-type': 'audio/wav', 'cache-control': 'private, max-age=3600' },
+      // Vary: Authorization porque a resposta depende da posse validada no token:
+      // sem ele, um cache compartilhado pode servir o áudio de uma conta a outra
+      // que conheça a mesma URL.
+      headers: {
+        'content-type': 'audio/wav',
+        'cache-control': 'private, max-age=3600',
+        vary: 'Authorization',
+      },
     });
   } catch {
     return NextResponse.json({ error: 'Áudio indisponível.' }, { status: 404 });

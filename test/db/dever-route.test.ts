@@ -191,6 +191,9 @@ test('GET de áudio exige posse e devolve o WAV', async () => {
   const resA = await lerAudio(reqComToken(a.id), { params: { id, ordem: '1' } });
   expect(resA.status).toBe(200);
   expect(resA.headers.get('content-type')).toBe('audio/wav');
+  // A resposta depende da posse validada no token: sem Vary, um cache
+  // compartilhado pode servir o áudio de A para B na mesma URL.
+  expect(resA.headers.get('vary')).toBe('Authorization');
 
   const resB = await lerAudio(reqComToken(b.id), { params: { id, ordem: '1' } });
   expect(resB.status).toBe(404);
@@ -204,3 +207,53 @@ test('áudio de passo inexistente responde 404', async () => {
   const res = await lerAudio(reqComToken(a.id), { params: { id, ordem: '9' } });
   expect(res.status).toBe(404);
 });
+
+// Discrimina o guard Number.isInteger/ordem < 1: sem ele, Number('abc') = NaN e
+// o 404 viria de !passo?.audio_path, com outra mensagem.
+test('ordem não numérica ou < 1 cai no guard de ordem (404 Passo inválido)', async () => {
+  const a = await createConta('Ana', 'S', 'd16@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
+  await criarPassos(pool, id, [
+    { ordem: 1, titulo: 'a', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
+  ]);
+
+  for (const ordem of ['abc', '0', '-1']) {
+    const res = await lerAudio(reqComToken(a.id), { params: { id, ordem } });
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe('Passo inválido.');
+  }
+});
+
+test('GET /api/deveres devolve o dever com total_passos', async () => {
+  const a = await createConta('Ana', 'S', 'd17@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: 'Matemática', conteudo_texto: 'x', resumo_para_pais: null });
+  await criarPassos(pool, id, [
+    { ordem: 1, titulo: 'Primeiro', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
+    { ordem: 2, titulo: 'Depois', narracao: 'b', cena, audio_path: null, duracao_ms: 2000 },
+  ]);
+
+  const res = await listarDeveres(reqComToken(a.id));
+  expect(res.status).toBe(200);
+  const corpo = await res.json();
+  expect(corpo).toHaveLength(1);
+  expect(corpo[0].id).toBe(id);
+  expect(corpo[0].total_passos).toBe(2);
+});
+
+// Insere os passos em ordem decrescente de criação: só o ORDER BY ordem de
+// getPassos devolve 'Primeiro' antes de 'Depois'.
+test('passos vêm em ordem crescente de ordem mesmo inseridos ao contrário', async () => {
+  const a = await createConta('Ana', 'S', 'd18@example.com', 'hash', 3);
+  const id = await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: 'Matemática', conteudo_texto: 'x', resumo_para_pais: null });
+  await criarPassos(pool, id, [
+    { ordem: 2, titulo: 'Depois', narracao: 'b', cena, audio_path: null, duracao_ms: 2000 },
+    { ordem: 1, titulo: 'Primeiro', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
+  ]);
+
+  const res = await lerDever(reqComToken(a.id), { params: { id } });
+  expect(res.status).toBe(200);
+  const corpo = await res.json();
+  expect(corpo.passos.map((p: { titulo: string }) => p.titulo)).toEqual(['Primeiro', 'Depois']);
+  expect(corpo.passos.map((p: { ordem: number }) => p.ordem)).toEqual([1, 2]);
+});
+
