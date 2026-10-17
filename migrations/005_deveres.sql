@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS dever_passos (
 );
 
 CREATE INDEX IF NOT EXISTS idx_deveres_conta ON deveres (conta_id, criado_em DESC);
-CREATE INDEX IF NOT EXISTS idx_dever_passos_dever ON dever_passos (dever_id, ordem);
 
 -- Igual ao índice de revisoes (004): a chave identifica a tentativa e só é única
 -- por conta. Nulo não entra no índice, então deveres sem tentativa não colidem.

@@ -56,4 +56,30 @@ test('migração 005 cria a chave única parcial de deveres', async () => {
   await pool.query(`INSERT INTO deveres (conta_id, conteudo_texto) VALUES ($1, 'z')`, [contaId]);
   const { rows } = await pool.query(`SELECT count(*)::int AS c FROM deveres WHERE conta_id = $1`, [contaId]);
   expect(rows[0].c).toBe(3);
+
+  // a unicidade é por conta, não global: outra conta pode usar a MESMA chave
+  await pool.query(
+    `INSERT INTO contas (nome, sobrenome, email, senha_hash) VALUES ('C','D','outra@teste.com','h')`
+  );
+  const { rows: outraRows } = await pool.query(`SELECT id FROM contas WHERE email = 'outra@teste.com'`);
+  const outraContaId = outraRows[0].id;
+  await pool.query(
+    `INSERT INTO deveres (conta_id, conteudo_texto, chave_idempotencia) VALUES ($1, 'x', 'k1')`,
+    [outraContaId],
+  );
+  const { rows: outraContagem } = await pool.query(
+    `SELECT count(*)::int AS c FROM deveres WHERE conta_id = $1`,
+    [outraContaId],
+  );
+  expect(outraContagem[0].c).toBe(1);
+
+  // o índice é parcial: a definição no catálogo carrega o predicado WHERE
+  const { rows: idxRows } = await pool.query(
+    `SELECT indexdef FROM pg_indexes
+     WHERE tablename = 'deveres' AND indexname = 'idx_deveres_chave'`
+  );
+  expect(idxRows).toHaveLength(1);
+  expect(idxRows[0].indexdef).toContain('UNIQUE');
+  expect(idxRows[0].indexdef).toContain('(conta_id, chave_idempotencia)');
+  expect(idxRows[0].indexdef).toContain('WHERE (chave_idempotencia IS NOT NULL)');
 });
