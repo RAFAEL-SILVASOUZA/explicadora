@@ -84,3 +84,44 @@ export interface QuestaoInput {
   resposta_correta: string;
   dica: string;
 }
+
+export interface Dever {
+  id: string;
+  conta_id: string;
+  titulo: string | null;
+  disciplina: string | null;
+  serie_ano: string;
+  conteudo_texto: string;
+  resumo_para_pais: string | null;
+  chave_idempotencia?: string | null;
+  criado_em: string;
+}
+
+export interface DeverPasso {
+  id: number;
+  dever_id: string;
+  ordem: number;
+  titulo: string;
+  narracao: string;
+  cena: unknown;
+  audio_path: string | null;
+  duracao_ms: number | null;
+}
+
+export interface ResumoDever extends Dever {
+  total_passos: number;
+}
+
+export interface DeverCompleto {
+  dever: Dever;
+  passos: DeverPasso[];
+}
+
+export interface PassoInput {
+  ordem: number;
+  titulo: string;
+  narracao: string;
+  cena: unknown;
+  audio_path: string | null;
+  duracao_ms: number | null;
+}
