@@ -97,10 +97,55 @@ async function regenerarPasso(
   return { ...sb, passos };
 }
 
+// Strings que o renderizador desenha na tela da criança. Um `texto.valor` = '42'
+// ou um rótulo com a conta resolvida entrega o resultado mesmo com narração
+// inocente, então a auditoria (spec §4.2: ver o storyboard inteiro) precisa ler a
+// cena também. Defensivo de propósito: um primitivo malformado vindo do modelo
+// não pode derrubar a auditoria, só é ignorado.
+function stringsDaCena(cena: unknown): string[] {
+  const saida: string[] = [];
+  const primitivos = (cena as { primitivos?: unknown } | null)?.primitivos;
+  if (!Array.isArray(primitivos)) return saida;
+  for (const p of primitivos) {
+    if (!p || typeof p !== 'object') continue;
+    const pr = p as Record<string, unknown>;
+    switch (pr.kind) {
+      case 'texto':
+      case 'emoji':
+        if (typeof pr.valor === 'string') saida.push(pr.valor);
+        break;
+      case 'reta_numerica':
+        // No schema as marcas são números; a única string é o rótulo da reta.
+        if (typeof pr.rotulo === 'string') saida.push(pr.rotulo);
+        break;
+      case 'barra_modelo':
+        if (Array.isArray(pr.partes)) {
+          for (const parte of pr.partes) {
+            const rotulo = (parte as { rotulo?: unknown } | null)?.rotulo;
+            if (typeof rotulo === 'string') saida.push(rotulo);
+          }
+        }
+        break;
+      case 'balanca':
+        for (const chave of ['prato_esquerdo', 'prato_direito'] as const) {
+          const prato = pr[chave];
+          if (Array.isArray(prato)) {
+            for (const item of prato) {
+              if (typeof item === 'string') saida.push(item);
+            }
+          }
+        }
+        break;
+    }
+  }
+  return saida.filter((s) => s.trim() !== '');
+}
+
 export async function revisarVazamento(storyboard: Storyboard): Promise<VazamentoResultado> {
   const alvo = llm.withStructuredOutput(VazamentoSchema, { name: 'auditar_vazamento' });
   const explicacao = storyboard.passos
-    .map((p, i) => `${i + 1}. ${p.titulo}: ${p.narracao}`).join('\n');
+    .map((p, i) => `${i + 1}. ${p.titulo}: ${p.narracao} | tela: ${stringsDaCena(p.cena).join(' ')}`)
+    .join('\n');
   const messages = [
     { role: 'system', content: PROMPT_AUDITORIA },
     { role: 'user', content: explicacao },
@@ -128,7 +173,14 @@ export async function gerarStoryboardSeguro(
 
   for (let tentativa = 0; tentativa <= MAX_TENTATIVAS_VAZAMENTO; tentativa++) {
     const auditoria = await revisarVazamento(storyboard);
-    if (!auditoria.vaza_resposta || auditoria.passo < 1) {
+    // O índice vem do LLM: fora de [1, passos.length] (99, 0, NaN) a regeneração
+    // escreveria passos[ordem-1] fora do fim do array, criando buracos undefined
+    // que fazem sanitizarStoryboard lançar TypeError (500 não-retryável). Fora da
+    // faixa, tratamos como "não vaza" e seguimos adiante.
+    const indiceValido = Number.isInteger(auditoria.passo)
+      && auditoria.passo >= 1
+      && auditoria.passo <= storyboard.passos.length;
+    if (!auditoria.vaza_resposta || !indiceValido) {
       return { storyboard: sanitizarStoryboard(storyboard), vazamentoNaoCorrigido: false };
     }
 
