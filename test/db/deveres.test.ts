@@ -71,3 +71,22 @@ test('dois deveres sem chave coexistem', async () => {
   await criarDever(pool, conta.id, { titulo: null, disciplina: null, conteudo_texto: 'b', resumo_para_pais: null });
   expect(await listarDeveresComResumo(conta.id)).toHaveLength(2);
 });
+
+// A unicidade da chave de idempotência é POR CONTA (índice único parcial em
+// (conta_id, chave_idempotencia) WHERE chave_idempotencia IS NOT NULL), não global:
+// a mesma chave em contas diferentes coexistem e cada conta vê só o seu dever.
+test('a mesma chave em contas diferentes coexistem (unicidade por conta)', async () => {
+  const a = await createConta('Ana', 'S', 'ana6@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'T', 'bob6@example.com', 'hash', 3);
+  const idA = await criarDever(pool, a.id, {
+    titulo: 'dever A', disciplina: null, conteudo_texto: 'a', resumo_para_pais: null,
+    chaveIdempotencia: 'chave-compartilhada',
+  });
+  const idB = await criarDever(pool, b.id, {
+    titulo: 'dever B', disciplina: null, conteudo_texto: 'b', resumo_para_pais: null,
+    chaveIdempotencia: 'chave-compartilhada',
+  });
+  expect(idA).not.toBe(idB);
+  expect((await getDeverPorChave(pool, a.id, 'chave-compartilhada'))?.id).toBe(idA);
+  expect((await getDeverPorChave(pool, b.id, 'chave-compartilhada'))?.id).toBe(idB);
+});

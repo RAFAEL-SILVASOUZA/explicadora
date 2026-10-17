@@ -75,6 +75,8 @@ export async function listarDeveresComResumo(contaId: string): Promise<ResumoDev
   return rows as ResumoDever[];
 }
 
+// Ruling: sem contaId; só pode ser chamada depois que o dever foi resolvido por conta
+// (posse validada pela rota). Mesma convenção de getQuestoes/getRespostas em revisoes.ts.
 export async function getPassos(deverId: string): Promise<DeverPasso[]> {
   const { rows } = await getPool().query(
     `SELECT id, dever_id, ordem, titulo, narracao, cena, audio_path, duracao_ms
