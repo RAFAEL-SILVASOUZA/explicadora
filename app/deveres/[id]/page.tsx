@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Frown } from 'lucide-react';
@@ -26,6 +26,8 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
   const [chaveReinicio, setChaveReinicio] = useState(0);
   const [mostrarTranscricao, setMostrarTranscricao] = useState(false);
   const [movimentoReduzido, setMovimentoReduzido] = useState(false);
+  // Elemento de áudio do passo atual, exposto para play/pause/repetir vindos dos controles.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!lerToken()) {
@@ -71,9 +73,15 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
     if (passo.audio_path) {
       carregarAudioDever(params.id, passo.ordem).then((u) => {
-        if (cancelado || !u) return;
+        if (cancelado) {
+          // A object URL foi criada depois do cleanup: revogamos aqui para não vazar.
+          if (u) URL.revokeObjectURL(u);
+          return;
+        }
+        if (!u) return;
         url = u;
         audio = new Audio(u);
+        audioRef.current = audio;
         audio.addEventListener('ended', () => setTocando(false));
         audio.play().then(() => setTocando(true)).catch(() => setTocando(false));
       });
@@ -88,6 +96,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
       cancelado = true;
       if (audio) { audio.pause(); audio.src = ''; }
       if (url) URL.revokeObjectURL(url);
+      audioRef.current = null;
     };
   }, [params.id, indice, passo, duracaoMs]);
 
@@ -110,7 +119,22 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
   }
 
   function alternar() {
+    // Pausa/retoma também o áudio real; sem isso a fala continua com o desenho congelado.
+    if (tocando) {
+      audioRef.current?.pause();
+    } else {
+      audioRef.current?.play().catch(() => {});
+    }
     setTocando((atual) => !atual);
+    setChaveReinicio((c) => c + 1);
+  }
+
+  function repetir() {
+    // "Repetir este passo" refaz o desenho e o áudio do início (spec §5).
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
     setChaveReinicio((c) => c + 1);
   }
 
@@ -173,7 +197,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
           onPlayPause={alternar}
           onAnterior={() => irPara(indice - 1)}
           onProximo={() => irPara(indice + 1)}
-          onRepetir={() => setChaveReinicio((c) => c + 1)}
+          onRepetir={repetir}
           onAbrirTranscricao={() => setMostrarTranscricao((v) => !v)}
         />
 
