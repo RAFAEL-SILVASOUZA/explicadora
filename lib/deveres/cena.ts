@@ -5,6 +5,17 @@ import { z } from 'zod';
 export const MAX_PASSOS = 8;
 export const MAX_PRIMITIVOS_POR_CENA = 24;
 
+// Tetos de contagem interna das primitivas. O clamp de coordenadas não protege
+// loops: o renderizador da Task 12 itera `p.itens` por frame dentro do
+// requestAnimationFrame, então um `itens: 100000` vindo do modelo congelaria o
+// navegador da criança. Os tetos ficam na sanitização (não no schema) para que
+// uma cena fora do limite seja corrigida em vez de descartada.
+export const MAX_ITENS_BLOCOS = 100;
+export const MAX_COLUNAS_BLOCOS = 20;
+export const MAX_MARCAS_RETA = 24;
+export const MAX_PARTES_BARRA = 12;
+export const MAX_ITENS_PRATO = 12;
+
 // Coordenadas são normalizadas em 0..1 nos dois eixos: o renderizador multiplica
 // pelo tamanho efetivo do canvas, então o modelo não precisa conhecer a tela.
 const coord = z.number();
@@ -95,15 +106,67 @@ function temTamanhoVisivel(p: Record<string, unknown>): boolean {
   return true;
 }
 
+// Contagens internas escapam do clamp de coordenadas e viram loop longo no
+// renderizador. Limitar aqui (e não no schema) preserva a cena: um `itens`
+// exagerado continua ensinando, só que com o número de formas que o canvas
+// aguenta por frame. `slice`/valores novos mantêm a entrada intacta.
+function limitarContagens(p: Record<string, unknown>): Record<string, unknown> {
+  switch (p.kind) {
+    case 'blocos': {
+      const saida = { ...p };
+      if (typeof saida.colunas === 'number') {
+        saida.colunas = Math.min(MAX_COLUNAS_BLOCOS, Math.max(1, Math.trunc(saida.colunas)));
+      }
+      if (typeof saida.itens === 'number') {
+        saida.itens = Math.min(MAX_ITENS_BLOCOS, Math.max(1, Math.trunc(saida.itens)));
+      }
+      return saida;
+    }
+    case 'reta_numerica': {
+      if (Array.isArray(p.marcas) && p.marcas.length > MAX_MARCAS_RETA) {
+        return { ...p, marcas: p.marcas.slice(0, MAX_MARCAS_RETA) };
+      }
+      return p;
+    }
+    case 'barra_modelo': {
+      if (Array.isArray(p.partes) && p.partes.length > MAX_PARTES_BARRA) {
+        return { ...p, partes: p.partes.slice(0, MAX_PARTES_BARRA) };
+      }
+      return p;
+    }
+    case 'balanca': {
+      const saida = { ...p };
+      let mudou = false;
+      for (const chave of ['prato_esquerdo', 'prato_direito'] as const) {
+        const prato = saida[chave];
+        if (Array.isArray(prato) && prato.length > MAX_ITENS_PRATO) {
+          saida[chave] = prato.slice(0, MAX_ITENS_PRATO);
+          mudou = true;
+        }
+      }
+      return mudou ? saida : p;
+    }
+    default:
+      return p;
+  }
+}
+
 export function sanitizarCena(cena: Cena): Cena {
   const primitivos = cena.primitivos
-    .map((p) => clamparCoordenadas(p as Record<string, unknown>))
+    .map((p) => limitarContagens(clamparCoordenadas(p as Record<string, unknown>)))
     .filter(temTamanhoVisivel)
     .slice(0, MAX_PRIMITIVOS_POR_CENA);
   return { ...cena, primitivos } as Cena;
 }
 
 export function sanitizarStoryboard(sb: Storyboard): Storyboard {
+  // A spec fixa 3 a 8 passos: fora disso clampa para os primeiros 8 e loga, para
+  // que um storyboard truncado seja visível no log do servidor e não só na tela.
+  if (sb.passos.length > MAX_PASSOS) {
+    console.warn(
+      `[deveres] storyboard com ${sb.passos.length} passos: truncado para ${MAX_PASSOS}.`,
+    );
+  }
   return {
     ...sb,
     passos: sb.passos
