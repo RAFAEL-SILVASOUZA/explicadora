@@ -9,6 +9,7 @@
     "test:db": "vitest run test/db --no-file-parallelism",
     "test:llm": "vitest run lib/llm.test.ts lib/deveres/llm.test.ts",
     "limpar-uploads": "tsx scripts/limpar-uploads-orfaos.ts",
+    "regenerar-audio": "tsx scripts/regenerar-audio.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
