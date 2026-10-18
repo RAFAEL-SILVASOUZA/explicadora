@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { Cena } from '@/lib/deveres/cena';
 import { estadoDoPasso } from '@/lib/deveres/animacao';
-import { desenharFundo, desenharPrimitiva } from '@/lib/deveres/desenho';
+import { desenharFundo, desenharPrimitiva, FONTE_PADRAO, type Dimensoes } from '@/lib/deveres/desenho';
 import { progressoDoPasso } from '@/lib/deveres/timeline';
 
 interface Props {
@@ -34,21 +34,33 @@ export default function CanvasExplicacao({ cena, duracaoMs, tocando, chaveReinic
     let quadro = 0;
     let anterior = 0;
 
+    // A família vem do CSS (Nunito via next/font). O canvas não entende var(),
+    // então lemos o valor resolvido do próprio elemento.
+    const lerFamilia = () => getComputedStyle(canvas).fontFamily || FONTE_PADRAO;
+    let familiaFonte = lerFamilia();
+    // next/font injeta a fonte depois do primeiro frame: sem isso o primeiro
+    // desenho sairia com o fallback.
+    document.fonts?.ready.then(() => { familiaFonte = lerFamilia(); }).catch(() => {});
+
     const pintar = () => {
-      const dpr = window.devicePixelRatio || 1;
+      // Piso 1: com zoom do navegador o DPR cai abaixo de 1 (ex.: 0.9) e o bitmap
+      // ficaria MENOR que o tamanho exibido, esticado e borrado.
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
       const largura = canvas.clientWidth;
       const altura = canvas.clientHeight;
       // Canvas desfoca sem escalar o bitmap pelo DPR.
-      if (canvas.width !== largura * dpr || canvas.height !== altura * dpr) {
-        canvas.width = largura * dpr;
-        canvas.height = altura * dpr;
+      if (canvas.width !== Math.round(largura * dpr) || canvas.height !== Math.round(altura * dpr)) {
+        canvas.width = Math.round(largura * dpr);
+        canvas.height = Math.round(altura * dpr);
+        familiaFonte = lerFamilia();
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      desenharFundo(ctx, cena.fundo, { largura, altura });
+      const d: Dimensoes = { largura, altura, familiaFonte };
+      desenharFundo(ctx, cena.fundo, d);
       const progresso = progressoDoPasso(acumuladoRef.current, duracaoMs);
       for (const item of estadoDoPasso(cena, progresso, movimentoReduzido)) {
-        desenharPrimitiva(ctx, item, { largura, altura });
+        desenharPrimitiva(ctx, item, d);
       }
     };
 
@@ -70,8 +82,8 @@ export default function CanvasExplicacao({ cena, duracaoMs, tocando, chaveReinic
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="w-full rounded-3xl bg-white border-2 border-primary/15"
-      style={{ aspectRatio: '4 / 3', touchAction: 'none' }}
+      className="canvas-dever w-full mx-auto rounded-3xl bg-white border-2 border-primary/15 aspect-square sm:aspect-[4/3]"
+      style={{ touchAction: 'none' }}
     />
   );
 }

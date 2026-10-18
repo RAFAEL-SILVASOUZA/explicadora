@@ -35,3 +35,19 @@ body {
     @apply inline-flex items-center gap-1 px-3 py-2 rounded-xl font-semibold text-ink/70 hover:bg-primary-light hover:text-primary-dark transition-colors;
   }
 }
+
+/* Canvas da explicação do dever (desktop-first): o desenho é o conteúdo, então o
+   canvas cresce ao máximo que a tela permite. header + trilha + título + controles
+   + link somam ~375px medidos, e o quadro inteiro tem de caber na tela sem rolagem.
+   Por isso limitamos a LARGURA (não a altura): o aspect-ratio continua valendo e a
+   altura encolher junto. O piso é de LARGURA (320px = 240px de altura), não de
+   altura: assim a proporção 4:3 nunca distorce, e em telas muito baixas o canvas
+   para de encolher e a página rola um pouco (intencional, abaixo de ~600px de
+   altura útil). A regra só vale no desktop: no celular o canvas ocupa a largura toda. */
+@media (min-width: 640px) {
+  .canvas-dever {
+    min-width: 320px;
+    max-width: min(100%, calc((100vh - 388px) * 4 / 3));
+    max-width: min(100%, calc((100dvh - 388px) * 4 / 3));
+  }
+}

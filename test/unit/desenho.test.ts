@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { px, pontoDoTraco } from '@/lib/deveres/desenho';
+import {
+  FONTE_MINIMA_EMOJI,
+  FONTE_MINIMA_ROTULO,
+  FONTE_MINIMA_TEXTO,
+  px,
+  pontoDoTraco,
+  tamanhoDeFonte,
+} from '@/lib/deveres/desenho';
 
 describe('px', () => {
   it('converte coordenada normalizada em pixel', () => {
@@ -25,5 +32,24 @@ describe('pontoDoTraco', () => {
 
   it('no meio do traço', () => {
     expect(pontoDoTraco(0, 100, 0.5)).toBe(50);
+  });
+});
+
+describe('tamanhoDeFonte', () => {
+  it('num canvas grande usa o tamanho normalizado', () => {
+    expect(tamanhoDeFonte(0.04, 600, FONTE_MINIMA_TEXTO)).toBe(24);
+  });
+
+  it('num canvas pequeno aplica o piso (canvas de celular: 0,035 de 270px = 9px)', () => {
+    expect(tamanhoDeFonte(0.035, 270, FONTE_MINIMA_TEXTO)).toBe(FONTE_MINIMA_TEXTO);
+  });
+
+  it('o piso de rótulo é menor que o de texto corrido', () => {
+    expect(FONTE_MINIMA_ROTULO).toBeLessThan(FONTE_MINIMA_TEXTO);
+    expect(FONTE_MINIMA_EMOJI).toBeGreaterThan(FONTE_MINIMA_TEXTO);
+  });
+
+  it('coordenada inválida não gera fonte negativa', () => {
+    expect(tamanhoDeFonte(-1, 600, FONTE_MINIMA_ROTULO)).toBe(FONTE_MINIMA_ROTULO);
   });
 });

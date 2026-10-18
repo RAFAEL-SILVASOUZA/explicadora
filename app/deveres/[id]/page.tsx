@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Frown } from 'lucide-react';
+import { ChevronLeft, Frown } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
 import CanvasExplicacao from '@/components/deveres/CanvasExplicacao';
@@ -182,13 +182,18 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
   return (
     <>
       <Header />
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Mascote humor="feliz" className="w-12 h-12 shrink-0" decorative />
-          <div className="min-w-0">
+      {/* Tela da criança: mais larga que as páginas do pai porque o canvas é o
+          conteúdo principal (desktop-first; no celular ele ocupa a largura toda). */}
+      <main className="max-w-5xl mx-auto px-4 py-3 sm:py-4 space-y-2 sm:space-y-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Mascote humor="feliz" className="w-10 h-10 shrink-0" decorative />
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl font-extrabold text-primary truncate">{tituloDoDever(dados.dever)}</h1>
             <p className="text-ink/60 text-sm">{dados.dever.disciplina || 'Dever de casa'}</p>
           </div>
+          <Link href="/deveres" className="btn-secondary !py-2 !px-4 text-base shrink-0" aria-label="Voltar para os deveres">
+            <ChevronLeft size={18} aria-hidden="true" /> Deveres
+          </Link>
         </div>
 
         <p aria-live="polite" className="text-2xl font-extrabold text-ink">{passo.titulo}</p>
@@ -218,8 +223,6 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
             <TranscricaoDever passos={dados.passos} />
           </section>
         )}
-
-        <Link href="/deveres" className="btn-secondary !w-auto block text-center">Voltar para os deveres</Link>
       </main>
     </>
   );

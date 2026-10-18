@@ -1,11 +1,30 @@
 import type { Primitivo } from './cena';
 import type { PrimitivoAnimada } from './animacao';
 
-export interface Dimensoes { largura: number; altura: number }
+export interface Dimensoes {
+  largura: number;
+  altura: number;
+  // Família resolvida em tempo real (o canvas não aceita var() em ctx.font).
+  familiaFonte?: string;
+}
+
+export const FONTE_PADRAO = 'system-ui, sans-serif';
+
+// Pisos em pixels REAIS. O tamanho do texto vem normalizado (0..1 da altura),
+// então num canvas de celular (~270px de altura) um 0,035 viraria ~9px: a criança
+// não lê. O piso não acompanha o canvas, acompanha o olho.
+export const FONTE_MINIMA_TEXTO = 15;
+export const FONTE_MINIMA_EMOJI = 20;
+export const FONTE_MINIMA_ROTULO = 12;
 
 export function px(valor: number, dimensao: number): number {
   const v = Math.min(1, Math.max(0, valor));
   return v * dimensao;
+}
+
+// Converte tamanho normalizado em pixels aplicando o piso de legibilidade.
+export function tamanhoDeFonte(tamanhoNormalizado: number, altura: number, minimoPx: number): number {
+  return Math.max(px(tamanhoNormalizado, altura), minimoPx);
 }
 
 // Animação "desenhar" traça a linha progressivamente: o ponto final é
@@ -25,14 +44,22 @@ function opacidade(item: PrimitivoAnimada): number {
   return item.primitivo.animacao === 'fade' ? item.progresso : 1;
 }
 
+// ctx.font não resolve var(): receber "var(--font-nunito, ...)" faz a atribuição
+// ser rejeitada e o texto sair com a fonte da primitiva desenhada antes. A família
+// chega pronta em Dimensoes.familiaFonte, lida do CSS em tempo real.
+function familia(d: Dimensoes): string {
+  const f = d.familiaFonte?.trim();
+  return f && f.length > 0 ? f : FONTE_PADRAO;
+}
+
 export function desenharFundo(ctx: CanvasRenderingContext2D, cor: string, d: Dimensoes): void {
   ctx.fillStyle = cor;
   ctx.fillRect(0, 0, d.largura, d.altura);
 }
 
 function texto(ctx: CanvasRenderingContext2D, p: Extract<Primitivo, { kind: 'texto' }>, d: Dimensoes, item: PrimitivoAnimada): void {
-  const tamanho = px(p.tamanho, d.altura) * escala(item);
-  ctx.font = `700 ${tamanho}px var(--font-nunito, system-ui), system-ui, sans-serif`;
+  const tamanho = tamanhoDeFonte(p.tamanho, d.altura, FONTE_MINIMA_TEXTO) * escala(item);
+  ctx.font = `700 ${tamanho}px ${familia(d)}`;
   ctx.fillStyle = p.cor;
   ctx.globalAlpha = opacidade(item);
   ctx.textAlign = p.alinhamento === 'centro' ? 'center' : p.alinhamento === 'direita' ? 'right' : 'left';
@@ -42,8 +69,8 @@ function texto(ctx: CanvasRenderingContext2D, p: Extract<Primitivo, { kind: 'tex
 }
 
 function emoji(ctx: CanvasRenderingContext2D, p: Extract<Primitivo, { kind: 'emoji' }>, d: Dimensoes, item: PrimitivoAnimada): void {
-  const tamanho = px(p.tamanho, d.altura) * escala(item);
-  ctx.font = `${tamanho}px system-ui, sans-serif`;
+  const tamanho = tamanhoDeFonte(p.tamanho, d.altura, FONTE_MINIMA_EMOJI) * escala(item);
+  ctx.font = `${tamanho}px ${familia(d)}`;
   ctx.globalAlpha = opacidade(item);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -73,7 +100,7 @@ function retaNumerica(ctx: CanvasRenderingContext2D, p: Extract<Primitivo, { kin
     ctx.lineTo(mx, y + d.altura * 0.02);
     ctx.stroke();
     ctx.fillStyle = '#2D2A3E';
-    ctx.font = `600 ${d.altura * 0.03}px system-ui, sans-serif`;
+    ctx.font = `600 ${tamanhoDeFonte(0.03, d.altura, FONTE_MINIMA_ROTULO)}px ${familia(d)}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(String(marca), mx, y + d.altura * 0.03);
@@ -104,7 +131,7 @@ function barraModelo(ctx: CanvasRenderingContext2D, p: Extract<Primitivo, { kind
     ctx.fillRect(cursor, y0, largura, h);
     if (parte.rotulo && largura > d.largura * 0.03) {
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = `700 ${d.altura * 0.035}px system-ui, sans-serif`;
+      ctx.font = `700 ${tamanhoDeFonte(0.035, d.altura, FONTE_MINIMA_ROTULO)}px ${familia(d)}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(parte.rotulo, cursor + largura / 2, y0 + h / 2);
@@ -134,7 +161,7 @@ function balanca(ctx: CanvasRenderingContext2D, p: Extract<Primitivo, { kind: 'b
   ctx.lineTo(w / 2, 0);
   ctx.stroke();
   ctx.fillStyle = '#2D2A3E';
-  ctx.font = `700 ${d.altura * 0.035}px system-ui, sans-serif`;
+  ctx.font = `700 ${tamanhoDeFonte(0.035, d.altura, FONTE_MINIMA_ROTULO)}px ${familia(d)}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(p.prato_esquerdo.join(' + '), -w / 2, -d.altura * 0.01);
