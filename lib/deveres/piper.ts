@@ -20,8 +20,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Relativo a process.cwd(), o mesmo critério de uploads/ em app/api/revisao/route.ts.
 // Fica fora de public/ de propósito: public/ é servido sem autenticação.
 // A validação do deverId acontece em sintetizarPassos, antes de montar o caminho.
+//
+// Barras explícitas, não path.join: este valor é GRAVADO em audio_path e relido
+// por outra plataforma. path.join no host Windows produz 'uploads\deveres\...' e o
+// container Linux (produção) trata o backslash como parte do nome do arquivo, não
+// como separador: fs.readFile não acha o WAV e a rota devolve 404. Barra resolve
+// em ambos os SOs (Node aceita '/' no Windows).
 export function caminhoDoAudio(deverId: string, ordem: number): string {
-  return path.join('uploads', 'deveres', deverId, `${ordem}.wav`);
+  return `uploads/deveres/${deverId}/${ordem}.wav`;
 }
 
 export function piperDisponivel(): boolean {

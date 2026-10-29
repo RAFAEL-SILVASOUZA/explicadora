@@ -116,9 +116,9 @@ describe('piperDisponivel', () => {
 });
 
 describe('caminhoDoAudio', () => {
-  it('fica em uploads/deveres/<id>/<ordem>.wav', () => {
+  it('fica em uploads/deveres/<id>/<ordem>.wav com barras (portável entre SOs)', () => {
     const p = caminhoDoAudio('abc', 3);
-    expect(p.endsWith(path.join('uploads', 'deveres', 'abc', '3.wav'))).toBe(true);
+    expect(p).toBe('uploads/deveres/abc/3.wav');
   });
 });
 
