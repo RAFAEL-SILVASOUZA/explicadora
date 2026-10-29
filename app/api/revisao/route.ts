@@ -9,6 +9,7 @@ import { gerarQuestoes, ImagemProcessada } from '@/lib/llm';
 import { extrairTextoPDF } from '@/lib/pdf';
 import { processarImagem } from '@/lib/imagem';
 import { MAX_IMAGENS } from '@/lib/constantes';
+import { nomeSeguroParaUpload } from '@/lib/uploads/nomeSeguro';
 import path from 'path';
 import fs from 'fs';
 
@@ -25,12 +26,6 @@ type ResultadoCriacao = { status: 402 } | { status: 200; id: string; saldo: numb
 // 3) sem começar com ponto (mata '..' e dotfiles) e sem terminar em ponto
 //    (Windows trata 'x.png.' como 'x.png').
 // Se sobra string vazia, o arquivo não é gravado (o conteúdo já foi processado).
-export function nomeSeguroParaUpload(nome: string): string | null {
-  const base = nome.replace(/\\/g, '/').split('/').pop() || '';
-  const limpo = base.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^\.+/, '').replace(/\.$/, '');
-  return limpo.length > 0 ? limpo : null;
-}
-
 export async function POST(req: NextRequest) {
   const auth = await autenticar(req);
   if (!auth) return naoAutorizado();

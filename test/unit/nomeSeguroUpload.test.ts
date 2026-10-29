@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { POST as criarRevisao, nomeSeguroParaUpload } from '../../app/api/revisao/route';
+import { POST as criarRevisao } from '../../app/api/revisao/route';
+import { nomeSeguroParaUpload } from '../../lib/uploads/nomeSeguro';
 
 // A rota grava imagens em uploads/ com o nome que o cliente mandou. Um cliente
 // hostil pode mandar '../../arquivo' e escrever fora da pasta. O helper

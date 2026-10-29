@@ -6,7 +6,9 @@ node_modules/
 out/
 build/
 dist/
-uploads/
+# uploads/ na raiz (arquivos enviados por usuários); a âncora evita que a
+# regra pegue pastas de código como lib/uploads/
+/uploads/
 
 # production
 build/
