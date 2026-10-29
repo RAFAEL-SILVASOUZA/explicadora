@@ -12,8 +12,17 @@ services:
       # Dentro do container, 127.0.0.1 não é a máquina do host: o LLM local
       # (porta 1234) precisa ser alcançado via host.docker.internal.
       LLM_BASE_URL: http://host.docker.internal:1234/v1
+      # Dentro do container: binário Linux montado em /app/piper e voz montada
+      # em /app/piper-voz (o .env do host aponta para C:/Users/PC/piper).
+      PIPER_BIN: /app/piper/piper
+      PIPER_MODEL: /app/piper-voz/pt_BR-faber-medium.onnx
     volumes:
       - ./uploads:/app/uploads
+      # Piper Linux (binário + libs) e voz pt-BR: o binário do host é Windows,
+      # o container precisa do build linux_x86_64. Montado, não copiado na
+      # imagem: a voz tem ~60MB e o binário ~26MB.
+      - ./piper-linux/piper:/app/piper:ro
+      - ./piper-voz:/app/piper-voz:ro
     depends_on:
       postgres:
         condition: service_healthy

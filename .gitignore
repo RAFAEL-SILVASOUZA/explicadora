@@ -10,6 +10,10 @@ dist/
 # regra pegue pastas de código como lib/uploads/
 /uploads/
 
+# Piper Linux montado no container (binário ~26MB + voz ~63MB, não versionados)
+piper-linux/
+piper-voz/
+
 # production
 build/
 next.config.env
