@@ -240,6 +240,72 @@ test('GET /api/deveres devolve o dever com total_passos', async () => {
   expect(corpo[0].total_passos).toBe(2);
 });
 
+// ---------- Biblioteca: o dever usa o mesmo coletor da revisão ----------
+
+import { PNG_1X1 } from '../fixtures/arquivos';
+
+const pastasDaBiblioteca: string[] = [];
+afterEach(async () => {
+  for (const pasta of pastasDaBiblioteca) await fs.rm(pasta, { recursive: true, force: true });
+  pastasDaBiblioteca.length = 0;
+});
+
+const postComMaterial = (contaId: string, campos: Array<[string, string, Buffer]>) => {
+  const form = new FormData();
+  form.set('texto', 'dever de matemática');
+  for (const [campo, valor, bytes] of campos) {
+    if (bytes.length === 0) form.append(campo, valor);
+    else form.append(campo, new Blob([new Uint8Array(bytes)]), valor);
+  }
+  return new NextRequest('http://localhost/api/dever', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${assinarToken(contaId, 'user')}` },
+    body: form,
+  });
+};
+
+test('foto do dever enviada na criação é arquivada com origem "dever"', async () => {
+  const conta = await createConta('Ana', 'S', 'd19@example.com', 'hash', 3);
+  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', conta.id));
+
+  const res = await criarDever(postComMaterial(conta.id, [['arquivos', 'pagina.png', PNG_1X1]]));
+  expect(res.status).toBe(200);
+
+  const { rows } = await pool.query('SELECT mime, origem FROM arquivos WHERE conta_id = $1', [conta.id]);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].mime).toBe('image/png');
+  expect(rows[0].origem).toBe('dever');
+});
+
+test('dever reusa item da biblioteca pelo id, sem reenviar bytes', async () => {
+  const conta = await createConta('Ana', 'S', 'd20@example.com', 'hash', 3);
+  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', conta.id));
+
+  await criarDever(postComMaterial(conta.id, [['arquivos', 'pagina.png', PNG_1X1]]));
+  const { rows: guardado } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [conta.id]);
+
+  const res = await criarDever(postComMaterial(conta.id, [['arquivoIds', guardado[0].id, Buffer.alloc(0)]]));
+  expect(res.status).toBe(200);
+
+  const { rows: contagem } = await pool.query('SELECT count(*)::int AS c FROM arquivos WHERE conta_id = $1', [conta.id]);
+  expect(contagem[0].c).toBe(1);
+});
+
+test('arquivoIds de outra conta responde 400 e não debita o saldo', async () => {
+  const a = await createConta('Ana', 'S', 'd21@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'T', 'd22@example.com', 'hash', 3);
+  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', a.id));
+
+  await criarDever(postComMaterial(a.id, [['arquivos', 'de-a.png', PNG_1X1]]));
+  const { rows: alheio } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [a.id]);
+
+  const res = await criarDever(postComMaterial(b.id, [['arquivoIds', alheio[0].id, Buffer.alloc(0)]]));
+  expect(res.status).toBe(400);
+
+  const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [b.id]);
+  expect(rows[0].saldo_revisoes).toBe(3);
+});
+
 // Insere os passos em ordem decrescente de criação: só o ORDER BY ordem de
 // getPassos devolve 'Primeiro' antes de 'Depois'.
 test('passos vêm em ordem crescente de ordem mesmo inseridos ao contrário', async () => {

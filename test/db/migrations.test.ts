@@ -11,7 +11,7 @@ test('migração cria as tabelas do modelo', async () => {
      WHERE table_schema = 'public' ORDER BY table_name`
   );
   expect(rows.map(r => r.table_name)).toEqual([
-    'contas', 'dever_passos', 'deveres', 'lotes', 'migrations', 'movimentos_saldo',
+    'arquivos', 'contas', 'dever_passos', 'deveres', 'lotes', 'migrations', 'movimentos_saldo',
     'planos', 'questoes', 'respostas', 'revisoes', 'tokens',
   ]);
 });

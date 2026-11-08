@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Plus, Sparkles, Trash2 } from 'lucide-react';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
+import SelecionarDaBiblioteca from '@/components/arquivos/SelecionarDaBiblioteca';
 import { MAX_IMAGENS } from '@/lib/constantes';
 import { apiFetch } from '@/lib/client/api';
 import { notificarSaldo } from '@/lib/client/saldo';
@@ -14,6 +15,10 @@ export default function DeverForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [texto, setTexto] = useState('');
   const [arquivos, setArquivos] = useState<File[]>([]);
+  // Itens marcados na biblioteca e quantas deles são imagem: as duas fontes de
+  // material dividem o mesmo teto MAX_IMAGENS (limite do contexto de visão da LLM).
+  const [bibliotecaIds, setBibliotecaIds] = useState<string[]>([]);
+  const [imagensDaBiblioteca, setImagensDaBiblioteca] = useState(0);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
   const [avisoArquivos, setAvisoArquivos] = useState('');
@@ -42,7 +47,7 @@ export default function DeverForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (carregando || (!texto.trim() && arquivos.length === 0)) return;
+    if (carregando || (!texto.trim() && arquivos.length === 0 && bibliotecaIds.length === 0)) return;
     setCarregando(true);
     setErro('');
 
@@ -51,6 +56,7 @@ export default function DeverForm() {
 
     const formData = new FormData();
     formData.append('texto', texto.trim());
+    for (const id of bibliotecaIds) formData.append('arquivoIds', id);
     for (const file of arquivos) formData.append('arquivos', file);
 
     try {
@@ -102,12 +108,18 @@ export default function DeverForm() {
         />
       </div>
 
+      <SelecionarDaBiblioteca
+        selecionados={bibliotecaIds}
+        aoMudar={(ids, imagens) => { setBibliotecaIds(ids); setImagensDaBiblioteca(imagens); }}
+      />
+
       <div className="bg-white rounded-2xl border-2 border-dashed border-ink/20 p-4 sm:p-6">
         <label htmlFor="dever-arquivos" className="block text-xl font-semibold text-ink mb-2">
-          Fotos e PDFs do dever
+          Adicionar fotos e PDFs novos
         </label>
         <p id="ajuda-dever" className="text-ink/70 mb-4">
-          Fotografe cada página do dever com boa luz e letra legível. Adicione um arquivo por vez ou vários juntos.
+          Fotografe cada página do dever com boa luz e letra legível. O que você enviar aqui fica
+          guardado na sua biblioteca para as próximas vezes.
         </p>
         <input
           ref={inputRef}
@@ -122,7 +134,7 @@ export default function DeverForm() {
             const selecionados = Array.from(e.target.files || []);
             e.target.value = '';
             if (!selecionados.length) return;
-            let imagens = arquivos.filter((f) => !f.name.toLowerCase().endsWith('.pdf')).length;
+            let imagens = imagensDaBiblioteca + arquivos.filter((f) => !f.name.toLowerCase().endsWith('.pdf')).length;
             let excedentes = 0;
             let invalidos = 0;
             const aceitos = selecionados.filter((file) => {
@@ -182,7 +194,7 @@ export default function DeverForm() {
       <p className="text-ink/70 text-center">
         A Lia explica o dever em desenhos e áudio. Ela nunca entrega a resposta: explica o caminho para a criança fazer sozinha.
       </p>
-      <button type="submit" disabled={carregando || (!texto.trim() && arquivos.length === 0)} className="btn-primary">
+      <button type="submit" disabled={carregando || (!texto.trim() && arquivos.length === 0 && bibliotecaIds.length === 0)} className="btn-primary">
         <Sparkles size={24} aria-hidden="true" /> Explicar o dever
       </button>
     </form>

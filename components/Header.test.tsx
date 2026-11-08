@@ -31,3 +31,8 @@ test('tem o link Deveres na navegação', () => {
   render(<Header />);
   expect(screen.getByRole('link', { name: /deveres/i })).toBeTruthy();
 });
+
+test('tem o link Arquivos na navegação', () => {
+  render(<Header />);
+  expect(screen.getByRole('link', { name: /arquivos/i })).toBeTruthy();
+});

@@ -74,3 +74,22 @@ dois caminhos para a mesma intenção sempre divergem.
 ## Comentário de bloco não pode ter o fechamento no meio do texto
 Escrever `fill-*/stroke-*` dentro de um `/** ... */` fecha o comentário antes da linha terminar e
 quebra o texto. Em comentário de bloco, o texto não pode conter o próprio delimitador.
+
+## Um arquivo guardado sem dono não pode ser reaproveitado
+A rota de revisão gravava as imagens em `uploads/<nome>` sem tabela: o arquivo não tinha dono (não
+dava para listar nem excluir), nomes iguais se sobrescreviam e nada podia ser reusado na tela
+seguinte. Gravar bytes é metade de guardar; a outra metade é a linha que diz de quem é. A biblioteca
+existe por causa dessa metade que faltava.
+
+## O tipo de um arquivo é o que ele é, não o nome que veio no form
+Decidir por extensão (`file.name.endsWith('.png')`) aceita qualquer binário renomeado para `.png` e
+entrega lixo ao sharp. `lib/uploads/tipos.ts` decide pelo magic number e a extensão gravada em disco
+vem do tipo detectado, nunca do nome do cliente — por isso o caminho é sempre `<uuid>.<ext>` e
+traversal por nome deixa de ser um problema a defender.
+
+## Limite de contexto é por tentativa, não por fonte de dados
+Com a biblioteca, o material de uma criação passou a vir de dois lugares (bytes novos + ids
+reutilizados). Manter `MAX_IMAGENS` contado à parte em cada fonte permitiria 80 imagens na mesma
+chamada de LLM. O teto é do contexto de visão, então uma função só (`coletarMateriais`) soma as duas
+fontes contra o mesmo contador — e o formulário precisa saber quantas imagens a biblioteca marcou
+para aplicar o mesmo número antes de enviar.

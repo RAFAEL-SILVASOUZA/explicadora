@@ -5,13 +5,8 @@ import { criarRevisao, createQuestoes, getRevisaoPorChave } from '@/lib/repos/re
 import { vincularMovimentoARevisao } from '@/lib/repos/movimentos';
 import { comTransacao } from '@/lib/repos/transacao';
 import { getPool } from '@/lib/db/pool';
-import { gerarQuestoes, ImagemProcessada } from '@/lib/llm';
-import { extrairTextoPDF } from '@/lib/pdf';
-import { processarImagem } from '@/lib/imagem';
-import { MAX_IMAGENS } from '@/lib/constantes';
-import { nomeSeguroParaUpload } from '@/lib/uploads/nomeSeguro';
-import path from 'path';
-import fs from 'fs';
+import { gerarQuestoes } from '@/lib/llm';
+import { MaterialInvalido, coletarMateriais } from '@/lib/uploads/materiais';
 
 // O resultado da transação: 402 quando o saldo está esgotado, 200 quando a
 // revisão foi criada. A rota não decide o SQL, só o código HTTP.
@@ -19,40 +14,21 @@ import fs from 'fs';
 // encontrada sem debitar de novo.
 type ResultadoCriacao = { status: 402 } | { status: 200; id: string; saldo: number; duplicate?: boolean };
 
-// Nome seguro para gravar em uploads/: o navegador manda só o nome do arquivo,
-// mas um cliente hostil pode mandar '../../arquivo' ou 'C:\segredo.png'. Regras:
-// 1) basename depois de trocar \\ por / (cobre caminho Windows e Unix);
-// 2) só letras, números, ponto, hífen e sublinhado; o resto vira _;
-// 3) sem começar com ponto (mata '..' e dotfiles) e sem terminar em ponto
-//    (Windows trata 'x.png.' como 'x.png').
-// Se sobra string vazia, o arquivo não é gravado (o conteúdo já foi processado).
 export async function POST(req: NextRequest) {
   const auth = await autenticar(req);
   if (!auth) return naoAutorizado();
 
   try {
     const formData = await req.formData();
-    const texto = (formData.get('texto') as string) || '';
-    const files = formData.getAll('arquivos') as File[];
+    // O material vem de duas fontes: arquivos novos (que passam a ser guardados na
+    // biblioteca da conta) e ids de itens já guardados (relidos do servidor, sem
+    // reenvio). A coleta mora em lib/uploads/materiais porque a rota de dever faz o
+    // mesmo caminho; antes, o loop estava duplicado nos dois arquivos.
+    const materiais = await coletarMateriais(formData, auth.contaId, 'revisao');
+    const conteudoCompleto = materiais.texto;
+    const imagens = materiais.imagens;
 
-    let conteudoCompleto = texto;
-    const imagens: ImagemProcessada[] = [];
-
-    for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'pdf') {
-        try { conteudoCompleto += `\n\n--- Conteúdo do PDF: ${file.name} ---\n${await extrairTextoPDF(buffer)}`; } catch {}
-      } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext || '')) {
-        if (imagens.length >= MAX_IMAGENS) continue;
-        try {
-          const { base64, mime } = await processarImagem(buffer);
-          imagens.push({ base64, mime });
-          const nome = nomeSeguroParaUpload(file.name);
-          if (nome) fs.writeFileSync(path.join(process.cwd(), 'uploads', nome), buffer);
-        } catch {}
-      }
-    }
+    for (const aviso of materiais.avisos) console.warn('[POST /api/revisao]', aviso);
 
     if (!conteudoCompleto.trim() && imagens.length === 0) {
       return NextResponse.json({ error: 'Forneça texto ou arquivos.' }, { status: 400 });
@@ -95,6 +71,12 @@ export async function POST(req: NextRequest) {
       ...(resultado.duplicate ? { duplicate: true } : {}),
     });
   } catch (err) {
+    // Material inválido (id de outra conta, excesso): erro do cliente, devolve 400
+    // com a razão em vez de 500. Antes de qualquer outra coisa: é a falha mais
+    // comum e não deve cair no handler genérico.
+    if (err instanceof MaterialInvalido) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     // Corrida: duas transações com a mesma chave. A segunda toma 23505 no INSERT
     // (índice único parcial) e seu débito é rollbackado. Reconsulta fora da
     // transação e devolve a revisão da primeira — um único débito no total.

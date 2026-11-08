@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Home, BookOpen, User, LogOut, ShieldCheck, CircleDollarSign, Backpack } from 'lucide-react';
+import { Home, BookOpen, User, LogOut, ShieldCheck, CircleDollarSign, Backpack, Library } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { apiFetch, lerToken, limparToken } from '@/lib/client/api';
 import { assinarSaldo } from '@/lib/client/saldo';
@@ -77,6 +77,9 @@ export default function Header() {
           </Link>
           <Link href="/deveres" className={navClass('/deveres')} aria-current={ativo('/deveres') ? 'page' : undefined}>
             <Backpack size={18} aria-hidden="true" /> Deveres
+          </Link>
+          <Link href="/arquivos" className={navClass('/arquivos')} aria-current={ativo('/arquivos') ? 'page' : undefined}>
+            <Library size={18} aria-hidden="true" /> Arquivos
           </Link>
           <Link href="/creditos" className={navClass('/creditos')} aria-current={ativo('/creditos') ? 'page' : undefined}>
             <CircleDollarSign size={18} aria-hidden="true" /> Créditos

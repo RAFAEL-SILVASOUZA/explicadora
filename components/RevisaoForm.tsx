@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Rocket, Trash2 } from 'lucide-react';
 import LoadingQuestoes from '@/components/LoadingQuestoes';
+import SelecionarDaBiblioteca from '@/components/arquivos/SelecionarDaBiblioteca';
 import { MAX_IMAGENS } from '@/lib/constantes';
 import { apiFetch } from '@/lib/client/api';
 import { notificarSaldo } from '@/lib/client/saldo';
@@ -14,6 +15,11 @@ export default function RevisaoForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [texto, setTexto] = useState('');
   const [arquivos, setArquivos] = useState<File[]>([]);
+  // Itens marcados na biblioteca e quantas deles são imagem. As duas fontes de
+  // material dividem o mesmo teto MAX_IMAGENS, que é limite do contexto de visão da
+  // LLM, não por fonte; por isso a contagem de imagens marcadas sobe até aqui.
+  const [bibliotecaIds, setBibliotecaIds] = useState<string[]>([]);
+  const [imagensDaBiblioteca, setImagensDaBiblioteca] = useState(0);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
   const [avisoImagens, setAvisoImagens] = useState('');
@@ -44,7 +50,8 @@ export default function RevisaoForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (carregando || (!texto.trim() && arquivos.length === 0)) return;
+    const temMaterial = arquivos.length > 0 || bibliotecaIds.length > 0;
+    if (carregando || (!texto.trim() && !temMaterial)) return;
     setCarregando(true);
     setErro('');
 
@@ -53,6 +60,7 @@ export default function RevisaoForm() {
 
     const formData = new FormData();
     formData.append('texto', texto.trim());
+    for (const id of bibliotecaIds) formData.append('arquivoIds', id);
     for (const file of arquivos) {
       formData.append('arquivos', file);
     }
@@ -96,9 +104,14 @@ export default function RevisaoForm() {
         />
       </div>
 
+      <SelecionarDaBiblioteca
+        selecionados={bibliotecaIds}
+        aoMudar={(ids, imagens) => { setBibliotecaIds(ids); setImagensDaBiblioteca(imagens); }}
+      />
+
       <div className="bg-white rounded-2xl border-2 border-dashed border-ink/20 p-4 sm:p-6">
-        <label htmlFor="arquivos" className="block text-xl font-semibold text-ink mb-2">Imagens e PDFs (opcional)</label>
-        <p id="ajuda-arquivos" className="text-ink/70 mb-4">Adicione um arquivo por vez ou vários juntos. Confirme a seleção no seu aparelho e adicione mais quando quiser.</p>
+        <label htmlFor="arquivos" className="block text-xl font-semibold text-ink mb-2">Adicionar arquivos novos (opcional)</label>
+        <p id="ajuda-arquivos" className="text-ink/70 mb-4">O que você adicionar aqui fica guardado na sua biblioteca e você pode usar nas próximas vezes, sem enviar de novo.</p>
         <input
           ref={inputRef}
           id="arquivos"
@@ -112,7 +125,7 @@ export default function RevisaoForm() {
             const selecionados = Array.from(e.target.files || []);
             e.target.value = '';
             if (!selecionados.length) return;
-            let imagens = arquivos.filter(f => !f.name.toLowerCase().endsWith('.pdf')).length;
+            let imagens = imagensDaBiblioteca + arquivos.filter(f => !f.name.toLowerCase().endsWith('.pdf')).length;
             let excedentes = 0;
             let invalidos = 0;
             const aceitos = selecionados.filter(file => {
@@ -179,10 +192,10 @@ export default function RevisaoForm() {
         </div>
       )}
 
-      <p className="text-ink/70 text-center">Tudo pronto? As questões serão geradas com o texto e todos os arquivos da lista.</p>
+      <p className="text-ink/70 text-center">Tudo pronto? As questões serão geradas com o texto e todo o material escolhido.</p>
       <button
         type="submit"
-        disabled={(carregando) || (!texto.trim() && arquivos.length === 0)}
+        disabled={carregando || (!texto.trim() && arquivos.length === 0 && bibliotecaIds.length === 0)}
         className="btn-primary"
       >
         <Rocket size={24} aria-hidden="true" /> Gerar Questões

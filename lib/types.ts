@@ -125,3 +125,19 @@ export interface PassoInput {
   audio_path: string | null;
   duracao_ms: number | null;
 }
+
+// Um item da biblioteca do aluno. `caminho` é relativo a process.cwd() e usa barras
+// explícitas (mesma razão de caminhoDoAudio em lib/deveres/piper.ts: o valor entra no
+// banco e é relido por outro SO). `hash` é o sha256 do conteúdo, usado no dedupe.
+// `origem` documenta de onde o arquivo veio: 'biblioteca', 'revisao' ou 'dever'.
+export interface Arquivo {
+  id: string;
+  conta_id: string;
+  nome: string;
+  mime: string;
+  tamanho: number;
+  caminho: string;
+  hash: string;
+  origem: string;
+  criado_em: string;
+}

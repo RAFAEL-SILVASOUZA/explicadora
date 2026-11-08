@@ -7,10 +7,7 @@ import { comTransacao } from '@/lib/repos/transacao';
 import { getPool } from '@/lib/db/pool';
 import { gerarStoryboardSeguro } from '@/lib/deveres/llm';
 import { sintetizarPassos } from '@/lib/deveres/piper';
-import { extrairTextoPDF } from '@/lib/pdf';
-import { processarImagem } from '@/lib/imagem';
-import { ImagemProcessada } from '@/lib/llm';
-import { MAX_IMAGENS } from '@/lib/constantes';
+import { MaterialInvalido, coletarMateriais } from '@/lib/uploads/materiais';
 
 type ResultadoCriacao =
   | { status: 402 }
@@ -22,25 +19,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const formData = await req.formData();
-    const texto = (formData.get('texto') as string) || '';
-    const files = formData.getAll('arquivos') as File[];
+    // Mesma coleta da rota de revisão: arquivos novos são guardados na biblioteca da
+    // conta e ids de itens já guardados são relidos do servidor.
+    const materiais = await coletarMateriais(formData, auth.contaId, 'dever');
+    let conteudoCompleto = materiais.texto;
+    const imagens = materiais.imagens;
 
-    let conteudoCompleto = texto;
-    const imagens: ImagemProcessada[] = [];
-
-    for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'pdf') {
-        try { conteudoCompleto += `\n\n--- Conteúdo do PDF: ${file.name} ---\n${await extrairTextoPDF(buffer)}`; } catch {}
-      } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext || '')) {
-        if (imagens.length >= MAX_IMAGENS) continue;
-        try {
-          const { base64, mime } = await processarImagem(buffer);
-          imagens.push({ base64, mime });
-        } catch {}
-      }
-    }
+    for (const aviso of materiais.avisos) console.warn('[POST /api/dever]', aviso);
 
     if (!conteudoCompleto.trim() && imagens.length === 0) {
       return NextResponse.json({ error: 'Envie uma foto do dever ou escreva o enunciado.' }, { status: 400 });
@@ -104,6 +89,10 @@ export async function POST(req: NextRequest) {
       ...(resultado.duplicate ? { duplicate: true } : {}),
     });
   } catch (err) {
+    // Material inválido (id fora da conta, excesso de arquivos): erro do cliente, 400.
+    if (err instanceof MaterialInvalido) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     // Corrida pela mesma chave: a segunda transação toma 23505 no índice único
     // parcial e o débito dela é rollbackado. Reconsulta e devolve o dever da
     // primeira: um único débito no total.

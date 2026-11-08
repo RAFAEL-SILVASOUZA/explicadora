@@ -17,13 +17,26 @@ afterEach(() => {
 
 const button = () => screen.getByRole('button', { name: /Explicar o dever/ }) as HTMLButtonElement;
 
-test('botão de enviar está desabilitado sem conteúdo', () => {
+// O formulário lista a biblioteca ao montar (SelecionarDaBiblioteca); sem stub, o
+// fetch do jsdom tentaria uma conexão real.
+function stubBibliotecaVazia() {
+  const original = globalThis.fetch;
+  vi.stubGlobal('fetch', async (url: string, options?: RequestInit) => {
+    if (url === '/api/arquivos') return { ok: true, json: async () => [] } as Response;
+    return original(url, options as RequestInit);
+  });
+}
+
+test('botão de enviar está desabilitado sem conteúdo', async () => {
+  stubBibliotecaVazia();
   render(<DeverForm />);
+  await waitFor(() => expect(screen.queryByText('Carregando seus arquivos...')).toBeNull());
   expect(button().disabled).toBe(true);
 });
 
 test('texto simples habilita o envio', async () => {
   const user = userEvent.setup();
+  stubBibliotecaVazia();
   render(<DeverForm />);
   await user.type(screen.getByLabelText('Escreva o enunciado (opcional)'), 'Quanto é 12 + 7?');
   expect(button().disabled).toBe(false);
@@ -32,7 +45,8 @@ test('texto simples habilita o envio', async () => {
 test('envio chama a rota, envia o texto e limpa a tentativa pendente', async () => {
   const user = userEvent.setup();
   const requests: FormData[] = [];
-  vi.stubGlobal('fetch', async (_url: string, options: RequestInit) => {
+  vi.stubGlobal('fetch', async (url: string, options: RequestInit) => {
+    if (url === '/api/arquivos') return { ok: true, json: async () => [] } as Response;
     requests.push(options.body as FormData);
     return { ok: true, status: 200, json: async () => ({ id: 'dever-1', saldo: 2 }) } as Response;
   });
@@ -49,10 +63,13 @@ test('envio chama a rota, envia o texto e limpa a tentativa pendente', async () 
 
 test('402 mostra a mensagem de crédito esgotado', async () => {
   const user = userEvent.setup();
-  vi.stubGlobal('fetch', async () => ({
-    ok: false, status: 402,
-    json: async () => ({ error: 'Você usou suas revisões. Resgate um token para continuar.' }),
-  }) as Response);
+  vi.stubGlobal('fetch', async (url: string) => {
+    if (url === '/api/arquivos') return { ok: true, json: async () => [] } as Response;
+    return {
+      ok: false, status: 402,
+      json: async () => ({ error: 'Você usou suas revisões. Resgate um token para continuar.' }),
+    } as Response;
+  });
 
   render(<DeverForm />);
   await user.type(screen.getByLabelText('Escreva o enunciado (opcional)'), 'dever');
@@ -66,13 +83,14 @@ test('402 mostra a mensagem de crédito esgotado', async () => {
 test('acumula fotos e PDFs e envia tudo junto', async () => {
   const user = userEvent.setup();
   const requests: FormData[] = [];
-  vi.stubGlobal('fetch', async (_url: string, options: RequestInit) => {
+  vi.stubGlobal('fetch', async (url: string, options: RequestInit) => {
+    if (url === '/api/arquivos') return { ok: true, json: async () => [] } as Response;
     requests.push(options.body as FormData);
     return { ok: false, status: 500, json: async () => ({ error: 'Tente novamente.' }) } as Response;
   });
 
   render(<DeverForm />);
-  const input = screen.getByLabelText('Fotos e PDFs do dever');
+  const input = screen.getByLabelText('Adicionar fotos e PDFs novos');
   await user.upload(input, new File(['a'], 'pagina-1.jpg', { type: 'image/jpeg' }));
   await user.upload(input, [
     new File(['b'], 'atividade.pdf', { type: 'application/pdf' }),
@@ -84,4 +102,32 @@ test('acumula fotos e PDFs e envia tudo junto', async () => {
   await waitFor(() => expect(requests).toHaveLength(1));
   expect(requests[0].getAll('arquivos').map((f) => (f as File).name))
     .toEqual(['pagina-1.jpg', 'atividade.pdf', 'pagina-2.jpg']);
+});
+
+test('arquivo marcado na biblioteca é enviado só pelo id', async () => {
+  const user = userEvent.setup();
+  const requests: FormData[] = [];
+  vi.stubGlobal('fetch', async (url: string, options: RequestInit) => {
+    if (url === '/api/arquivos' && (options?.method ?? 'GET') === 'GET') {
+      return {
+        ok: true,
+        json: async () => [
+          { id: 'ccc-3', nome: 'pagina-de-hoje.png', mime: 'image/png', tamanho: 2048, origem: 'dever', criado_em: '2026-11-08T00:00:00Z' },
+        ],
+      } as Response;
+    }
+    requests.push(options.body as FormData);
+    return { ok: false, status: 500, json: async () => ({ error: 'Tente novamente.' }) } as Response;
+  });
+
+  render(<DeverForm />);
+  const checkbox = await screen.findByRole('checkbox', { name: /pagina-de-hoje\.png/ });
+  await user.click(checkbox);
+  // Sem texto e sem arquivo novo: a biblioteca sozinha já basta para enviar.
+  expect(button().disabled).toBe(false);
+  await user.click(button());
+
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0].getAll('arquivoIds')).toEqual(['ccc-3']);
+  expect(requests[0].getAll('arquivos')).toHaveLength(0);
 });

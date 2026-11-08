@@ -159,3 +159,104 @@ test('LLM falha com chave pendente: nada persistido, nada debitado', async () =>
   const revisoes = await pool.query('SELECT count(*)::int AS c FROM revisoes WHERE conta_id = $1', [conta.id]);
   expect(revisoes.rows[0].c).toBe(0);
 });
+
+// ---------- Biblioteca: arquivamento automático e reuso por id ----------
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { PNG_1X1, PDF_FAKE } from '../fixtures/arquivos';
+
+const pastasDaBiblioteca: string[] = [];
+afterEach(async () => {
+  for (const pasta of pastasDaBiblioteca) await fs.rm(pasta, { recursive: true, force: true });
+  pastasDaBiblioteca.length = 0;
+});
+
+function vigiarBiblioteca(contaId: string) {
+  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', contaId));
+}
+
+const postComMaterial = (contaId: string, campos: Array<[string, string, Buffer]>) => {
+  const form = new FormData();
+  form.set('texto', 'Sistema solar');
+  for (const [campo, valor, bytes] of campos) {
+    // campo de id entra como texto simples; arquivo entra com nome de arquivo.
+    if (bytes.length === 0) form.append(campo, valor);
+    else form.append(campo, new Blob([new Uint8Array(bytes)]), valor);
+  }
+  return new NextRequest('http://localhost/api/revisao', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${assinarToken(contaId, 'user')}` },
+    body: form,
+  });
+};
+
+test('arquivo enviado na criação é arquivado na biblioteca com a origem da rota', async () => {
+  const conta = await createConta('Ana', 'Souza', 'arq1@example.com', 'hash', 3);
+  vigiarBiblioteca(conta.id);
+
+  const res = await criarRevisao(postComMaterial(conta.id, [['arquivos', 'pagina.jpg', PNG_1X1]]));
+  expect(res.status).toBe(200);
+
+  const { rows } = await pool.query('SELECT nome, mime, origem FROM arquivos WHERE conta_id = $1', [conta.id]);
+  expect(rows).toHaveLength(1);
+  // O nome gravado é o que o cliente mandou (saneado); o mime vem do conteúdo, não
+  // da extensão: o buffer abaixo é PNG disfarçado de .jpg.
+  expect(rows[0].nome).toBe('pagina.jpg');
+  expect(rows[0].mime).toBe('image/png');
+  expect(rows[0].origem).toBe('revisao');
+});
+
+test('id de arquivo já arquivado é reusado sem reenviar os bytes', async () => {
+  const conta = await createConta('Ana', 'Souza', 'arq2@example.com', 'hash', 3);
+  vigiarBiblioteca(conta.id);
+
+  await criarRevisao(postComMaterial(conta.id, [['arquivos', 'foto.png', PNG_1X1]]));
+  const { rows: guardado } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [conta.id]);
+  expect(guardado).toHaveLength(1);
+
+  // Segunda criação: só o id, nenhum arquivo no FormData. O material é relido do
+  // servidor; nada sobe do navegador de novo.
+  const res = await criarRevisao(postComMaterial(conta.id, [['arquivoIds', guardado[0].id, Buffer.alloc(0)]]));
+  expect(res.status).toBe(200);
+
+  // Reuso não gera arquivo novo: continua havendo um só.
+  const { rows: contagem } = await pool.query('SELECT count(*)::int AS c FROM arquivos WHERE conta_id = $1', [conta.id]);
+  expect(contagem[0].c).toBe(1);
+});
+
+test('arquivoIds de outra conta responde 400 e não debita', async () => {
+  const a = await createConta('Ana', 'Souza', 'arq3@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'Teste', 'arq4@example.com', 'hash', 3);
+  vigiarBiblioteca(a.id);
+
+  await criarRevisao(postComMaterial(a.id, [['arquivos', 'de-a.png', PNG_1X1]]));
+  const { rows: alheio } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [a.id]);
+
+  const res = await criarRevisao(postComMaterial(b.id, [['arquivoIds', alheio[0].id, Buffer.alloc(0)]]));
+  expect(res.status).toBe(400);
+
+  const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [b.id]);
+  expect(rows[0].saldo_revisoes).toBe(3);
+  const revisoes = await pool.query('SELECT count(*)::int AS c FROM revisoes WHERE conta_id = $1', [b.id]);
+  expect(revisoes.rows[0].c).toBe(0);
+});
+
+test('arquivoId malformado responde 400 (não vira 500)', async () => {
+  const conta = await createConta('Ana', 'Souza', 'arq5@example.com', 'hash', 3);
+  const res = await criarRevisao(postComMaterial(conta.id, [['arquivoIds', '../../etc/passwd', Buffer.alloc(0)]]));
+  expect(res.status).toBe(400);
+});
+
+test('PDF enviado na criação entra como texto e é arquivado', async () => {
+  const conta = await createConta('Ana', 'Souza', 'arq6@example.com', 'hash', 3);
+  vigiarBiblioteca(conta.id);
+
+  const res = await criarRevisao(postComMaterial(conta.id, [['arquivos', 'apostila.pdf', PDF_FAKE]]));
+  expect(res.status).toBe(200);
+
+  const { rows } = await pool.query('SELECT mime, origem FROM arquivos WHERE conta_id = $1', [conta.id]);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].mime).toBe('application/pdf');
+  expect(rows[0].origem).toBe('revisao');
+});
