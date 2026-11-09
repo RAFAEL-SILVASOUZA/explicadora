@@ -67,6 +67,20 @@ export async function listarArquivos(contaId: string): Promise<Arquivo[]> {
   return rows as Arquivo[];
 }
 
+// Renomeio: só a coluna de exibição muda — a chave no object storage é montada a
+// partir do id, nunca do nome, então os bytes não são tocados. A posse entra no
+// WHERE como em toda operação daqui: UPDATE em id de outra conta não toca linha.
+export async function renomearArquivo(
+  client: PoolClient | Pool, id: string, contaId: string, nome: string,
+): Promise<Arquivo | null> {
+  const { rows } = await client.query(
+    `UPDATE arquivos SET nome = $3 WHERE id = $1 AND conta_id = $2
+     RETURNING id, conta_id, nome, mime, tamanho, caminho, hash, origem, criado_em`,
+    [id, contaId, nome],
+  );
+  return (rows[0] as Arquivo) ?? null;
+}
+
 // Devolve a linha removida (o chamador apaga o arquivo do disco com o caminho dela).
 // RETURNING na DELETE: uma única ida ao banco e a posse validada no mesmo WHERE.
 export async function removerArquivo(

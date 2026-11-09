@@ -105,3 +105,55 @@ test('remover chama DELETE na rota do arquivo e some da lista', async () => {
   await waitFor(() => expect(chamadas).toContain('DELETE /api/arquivos/a1'));
   expect(screen.queryByText('caderno.png')).toBeNull();
 });
+
+test('renomear abre o editor, envia PATCH e troca o nome na lista', async () => {
+  const user = userEvent.setup();
+  localStorage.setItem('estudo_token', 'token-de-teste');
+  const chamadas: string[] = [];
+  let corpoPatch = '';
+  vi.stubGlobal('fetch', async (url: string, options?: RequestInit) => {
+    const metodo = options?.method ?? 'GET';
+    chamadas.push(`${metodo} ${url}`);
+    if (metodo === 'PATCH') {
+      corpoPatch = String(options?.body);
+      return { ok: true, json: async () => arquivo('a1', 'prova-logica.png') } as Response;
+    }
+    return { ok: true, json: async () => [arquivo('a1', 'caderno.png')] } as Response;
+  });
+
+  render(<Arquivos />);
+  await screen.findByText('caderno.png');
+  await user.click(screen.getByRole('button', { name: 'Renomear caderno.png' }));
+
+  // O editor vem pré-cheio com o radical, sem a extensão (que é fixa na tela).
+  const campo = await screen.findByLabelText(/Novo nome de caderno.png/);
+  expect((campo as HTMLInputElement).value).toBe('caderno');
+  await user.clear(campo);
+  await user.type(campo, 'prova logica'); // o espaço digitado é descartado no cliente
+  await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+  await waitFor(() => expect(chamadas).toContain('PATCH /api/arquivos/a1'));
+  expect(JSON.parse(corpoPatch)).toEqual({ nome: 'provalogica' });
+  expect(await screen.findByText('prova-logica.png')).toBeTruthy();
+});
+
+test('renomear não salva com nome vazio', async () => {
+  const user = userEvent.setup();
+  localStorage.setItem('estudo_token', 'token-de-teste');
+  const chamadas: string[] = [];
+  vi.stubGlobal('fetch', async (url: string, options?: RequestInit) => {
+    chamadas.push(`${options?.method ?? 'GET'} ${url}`);
+    return { ok: true, json: async () => [arquivo('a1', 'caderno.png')] } as Response;
+  });
+
+  render(<Arquivos />);
+  await screen.findByText('caderno.png');
+  await user.click(screen.getByRole('button', { name: 'Renomear caderno.png' }));
+  const campo = await screen.findByLabelText(/Novo nome de caderno.png/);
+  await user.clear(campo);
+  await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+  expect(chamadas).not.toContain('PATCH /api/arquivos/a1');
+  // O editor continua aberto: o aluno não perde o lugar onde estava.
+  expect(screen.queryByLabelText(/Novo nome de caderno.png/)).toBeTruthy();
+});

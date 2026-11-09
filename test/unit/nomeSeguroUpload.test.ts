@@ -3,7 +3,12 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { POST as criarRevisao } from '../../app/api/revisao/route';
-import { nomeSeguroParaUpload } from '../../lib/uploads/nomeSeguro';
+import {
+  nomeSeguroParaUpload,
+  ehRaizNomeValida,
+  dividirNomeExibicao,
+  montarNomeExibicao,
+} from '../../lib/uploads/nomeSeguro';
 
 // A rota grava imagens em uploads/ com o nome que o cliente mandou. Um cliente
 // hostil pode mandar '../../arquivo' e escrever fora da pasta. O helper
@@ -25,6 +30,40 @@ describe('nomeSeguroParaUpload', () => {
 
   test.each(casos)('%s -> %s', (entrada, esperado) => {
     expect(nomeSeguroParaUpload(entrada)).toBe(esperado);
+  });
+});
+
+describe('nome editável da biblioteca (renomeio)', () => {
+  const validas: Array<[string, boolean]> = [
+    ['prova', true],
+    ['prova-logica_1', true],
+    ['Matematica2026', true],
+    ['', false],
+    ['com espaco', false],
+    ['ponto.png', false],
+    ['ação', false],
+    ['matemática', false],
+    ['../../travessia', false],
+    ['x'.repeat(25), true],
+    ['x'.repeat(26), false],
+  ];
+
+  test.each(validas)('ehRaizNomeValida(%s) = %s', (raiz, esperada) => {
+    expect(ehRaizNomeValida(raiz)).toBe(esperada);
+  });
+
+  test('dividirNomeExibicao separa pelo último ponto', () => {
+    expect(dividirNomeExibicao('foto.png')).toEqual({ raiz: 'foto', extensao: 'png' });
+    expect(dividirNomeExibicao('a.b.pdf')).toEqual({ raiz: 'a.b', extensao: 'pdf' });
+    expect(dividirNomeExibicao('arquivo')).toEqual({ raiz: 'arquivo', extensao: '' });
+    expect(dividirNomeExibicao('.png')).toEqual({ raiz: '.png', extensao: '' });
+  });
+
+  test('montarNomeExibicao é o inverso de dividir', () => {
+    for (const nome of ['foto.png', 'a.b.pdf', 'arquivo']) {
+      const { raiz, extensao } = dividirNomeExibicao(nome);
+      expect(montarNomeExibicao(raiz, extensao)).toBe(nome);
+    }
   });
 });
 

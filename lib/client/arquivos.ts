@@ -49,6 +49,24 @@ export async function removerDaBiblioteca(id: string): Promise<boolean> {
 }
 
 /**
+ * Renomeia um arquivo da biblioteca. Manda só o radical ('prova-logica'): a
+ * extensão é recomposta pelo servidor a partir da linha atual, então um cliente
+ * adulterado não consegue trocar a extensão de um PNG para '.pdf'.
+ */
+export async function renomearNaBiblioteca(
+  id: string, raiz: string,
+): Promise<{ ok: true; arquivo: ArquivoPublico } | { ok: false; erro: string }> {
+  const res = await apiFetch(`/api/arquivos/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nome: raiz }),
+  });
+  const dados = await res.json().catch(() => null);
+  if (!res.ok) return { ok: false, erro: dados?.error || 'Não consegui renomear o arquivo.' };
+  return { ok: true, arquivo: dados as ArquivoPublico };
+}
+
+/**
  * Abre o arquivo em nova aba. <a href> não serve: o elemento âncora não envia
  * cabeçalho Authorization e a rota é autenticada de propósito. Mesma solução do
  * áudio do dever (lib/client/audio.ts): baixar via apiFetch e abrir pela object URL.

@@ -12,6 +12,7 @@ import {
   enviarParaBiblioteca,
   listarArquivosDaConta,
   removerDaBiblioteca,
+  renomearNaBiblioteca,
 } from '@/lib/client/arquivos';
 import { lerToken } from '@/lib/client/api';
 import { MAX_ARQUIVOS_POR_ENVIO } from '@/lib/constantes';
@@ -78,6 +79,18 @@ export default function Arquivos() {
       recusados.length ? `${recusados.length} não puderam ser enviados.` : '',
     ].filter(Boolean).join(' '));
     carregar();
+  };
+
+  const aoRenomear = async (arquivo: ArquivoPublico, novaRaiz: string) => {
+    setErro('');
+    setMensagem('');
+    const resposta = await renomearNaBiblioteca(arquivo.id, novaRaiz);
+    if (!resposta.ok) {
+      setErro(resposta.erro);
+      return;
+    }
+    setArquivos((atuais) => atuais.map((a) => (a.id === resposta.arquivo.id ? resposta.arquivo : a)));
+    setMensagem(`"${arquivo.nome}" agora se chama "${resposta.arquivo.nome}".`);
   };
 
   const aoRemover = async (arquivo: ArquivoPublico) => {
@@ -161,7 +174,7 @@ export default function Arquivos() {
             <p className="text-ink/70">Envie as fotos e os PDFs que você usa: eles ficam salvos para as próximas revisões e deveres.</p>
           </div>
         ) : (
-          <BibliotecaGrid arquivos={arquivos} aoRemover={aoRemover} />
+          <BibliotecaGrid arquivos={arquivos} aoRemover={aoRemover} aoRenomear={aoRenomear} />
         )}
       </main>
     </>

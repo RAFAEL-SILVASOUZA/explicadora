@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vi
 import { NextRequest } from 'next/server';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { GET as listarArquivos, POST as enviarArquivos } from '../../app/api/arquivos/route';
-import { DELETE as excluirArquivo } from '../../app/api/arquivos/[id]/route';
+import { DELETE as excluirArquivo, PATCH as renomearArquivo } from '../../app/api/arquivos/[id]/route';
 import { GET as lerConteudo } from '../../app/api/arquivos/[id]/conteudo/route';
 import { createConta } from '../../lib/repos/contas';
 import { assinarToken } from '../../lib/auth/jwt';
@@ -49,6 +49,16 @@ const postArquivos = (contaId: string, arquivos: Array<[string, Buffer]>) => {
     body: form,
   });
 };
+
+const patchNome = (contaId: string, id: string, nome: unknown) =>
+  new NextRequest(`http://localhost/api/arquivos/${id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${assinarToken(contaId, 'user')}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ nome }),
+  });
 
 beforeAll(async () => { await prepararBanco(); });
 beforeEach(async () => { await limparTabelas(); storageStore.clear(); });
@@ -218,6 +228,66 @@ test('id malformado na exclusão e no conteúdo responde 404 sem tocar o storage
     const conteudo = await lerConteudo(reqComToken(conta.id), { params: { id } });
     expect(conteudo.status).toBe(404);
   }
+});
+
+test('PATCH renomeia mantendo a extensão e não toca os bytes no storage', async () => {
+  const conta = await createConta('Ana', 'S', 'a14@example.com', 'hash', 3);
+  const criado = (await (await enviarArquivos(postArquivos(conta.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
+  const { rows: antes } = await pool.query('SELECT caminho FROM arquivos WHERE id = $1', [criado.id]);
+
+  const res = await renomearArquivo(patchNome(conta.id, criado.id, 'prova-logica'), { params: { id: criado.id } });
+  expect(res.status).toBe(200);
+  const corpo = await res.json();
+  expect(corpo.nome).toBe('prova-logica.png');
+  // A resposta pública não vaza caminho nem hash, mesma regra do POST.
+  expect(corpo.caminho).toBeUndefined();
+  expect(corpo.hash).toBeUndefined();
+
+  const { rows: depois } = await pool.query('SELECT nome, caminho FROM arquivos WHERE id = $1', [criado.id]);
+  expect(depois[0].nome).toBe('prova-logica.png');
+  expect(depois[0].caminho).toBe(antes[0].caminho);
+  // Mesma chave, mesmos bytes: renomeio é UPDATE de coluna, não movimentação no storage.
+  expect(storageStore.has(antes[0].caminho)).toBe(true);
+  expect(storageStore.size).toBe(1);
+});
+
+test('PATCH rejeita nome com espaço, ponto, acento ou acima de 25 caracteres', async () => {
+  const conta = await createConta('Ana', 'S', 'a15@example.com', 'hash', 3);
+  const criado = (await (await enviarArquivos(postArquivos(conta.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
+
+  for (const nome of ['com espaco', 'ponto.inter', 'ação', '', '   ', 'x'.repeat(26), null, 42]) {
+    const res = await renomearArquivo(patchNome(conta.id, criado.id, nome), { params: { id: criado.id } });
+    expect(res.status).toBe(400);
+  }
+
+  const { rows } = await pool.query('SELECT nome FROM arquivos WHERE id = $1', [criado.id]);
+  expect(rows[0].nome).toBe('foto.png');
+});
+
+test('PATCH de 25 caracteres é aceito (limite exato)', async () => {
+  const conta = await createConta('Ana', 'S', 'a16@example.com', 'hash', 3);
+  const criado = (await (await enviarArquivos(postArquivos(conta.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
+
+  const res = await renomearArquivo(patchNome(conta.id, criado.id, 'x'.repeat(25)), { params: { id: criado.id } });
+  expect(res.status).toBe(200);
+  expect((await res.json()).nome).toBe(`${'x'.repeat(25)}.png`);
+});
+
+test('PATCH de outra conta responde 404 e não renomeia; sem token, 401', async () => {
+  const a = await createConta('Ana', 'S', 'a17@example.com', 'hash', 3);
+  const b = await createConta('Bob', 'T', 'a18@example.com', 'hash', 3);
+  const criado = (await (await enviarArquivos(postArquivos(a.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
+
+  const res = await renomearArquivo(patchNome(b.id, criado.id, 'invasor'), { params: { id: criado.id } });
+  expect(res.status).toBe(404);
+  const { rows } = await pool.query('SELECT nome FROM arquivos WHERE id = $1', [criado.id]);
+  expect(rows[0].nome).toBe('foto.png');
+
+  const semToken = await renomearArquivo(
+    new NextRequest(`http://localhost/api/arquivos/${criado.id}`, { method: 'PATCH', body: '{}' }),
+    { params: { id: criado.id } },
+  );
+  expect(semToken.status).toBe(401);
 });
 
 test('envio sem arquivos responde 400', async () => {
