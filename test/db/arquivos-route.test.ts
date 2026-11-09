@@ -1,7 +1,5 @@
 // @vitest-environment node
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from 'vitest';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { GET as listarArquivos, POST as enviarArquivos } from '../../app/api/arquivos/route';
@@ -13,14 +11,29 @@ import { PNG_1X1, PDF_FAKE, EXECUTAVEL_DISFARCADO } from '../fixtures/arquivos';
 
 process.env.JWT_SECRET = 'segredo-de-teste-com-pelo-menos-32-caracteres';
 
-const LIXO = EXECUTAVEL_DISFARCADO;
+// A camada de bytes saiu do disco para o object storage (Supabase Storage). O teste
+// roda sem rede e sem bucket: mockamos lib/uploads/storage por um Map em memória com a
+// mesma interface (upload/download/remove). O mock entra pelo alias '@' que o vitest
+// resolve para o mesmo arquivo que lib/uploads/biblioteca.ts importa via './storage'.
+const { storageStore } = vi.hoisted(() => ({
+  storageStore: new Map<string, { bytes: Buffer; mime: string }>(),
+}));
+vi.mock('@/lib/uploads/storage', () => ({
+  bucket: () => 'uploads',
+  storageUpload: vi.fn(async (chave: string, bytes: Buffer, mime: string) => {
+    storageStore.set(chave, { bytes: Buffer.from(bytes), mime });
+  }),
+  storageDownload: vi.fn(async (chave: string) => {
+    const objeto = storageStore.get(chave);
+    if (!objeto) throw new Error(`storage download "${chave}": não encontrado`);
+    return Buffer.from(objeto.bytes);
+  }),
+  storageRemove: vi.fn(async (chaves: string[]) => {
+    for (const c of chaves) storageStore.delete(c);
+  }),
+}));
 
-// A pasta da biblioteca de cada conta no teste, para o cleanup não depender do
-// estado deixado por outro arquivo: cada teste limpa a pasta das contas que criou.
-const pastasParaLimpar: string[] = [];
-function registrarPasta(contaId: string) {
-  pastasParaLimpar.push(path.join(process.cwd(), 'uploads', 'biblioteca', contaId));
-}
+const LIXO = EXECUTAVEL_DISFARCADO;
 
 const reqComToken = (contaId: string, url = 'http://localhost/api/arquivos') =>
   new NextRequest(url, { headers: { Authorization: `Bearer ${assinarToken(contaId, 'user')}` } });
@@ -38,11 +51,7 @@ const postArquivos = (contaId: string, arquivos: Array<[string, Buffer]>) => {
 };
 
 beforeAll(async () => { await prepararBanco(); });
-beforeEach(async () => { await limparTabelas(); });
-afterEach(async () => {
-  for (const pasta of pastasParaLimpar) await fs.rm(pasta, { recursive: true, force: true });
-  pastasParaLimpar.length = 0;
-});
+beforeEach(async () => { await limparTabelas(); storageStore.clear(); });
 afterAll(async () => { await pool.end(); });
 
 test('sem token responde 401 em listar, enviar e excluir', async () => {
@@ -54,16 +63,15 @@ test('sem token responde 401 em listar, enviar e excluir', async () => {
   )).status).toBe(401);
 });
 
-test('enviar PNG grava a linha e os bytes em uploads/biblioteca', async () => {
+test('enviar PNG grava a linha e sobe os bytes para o storage', async () => {
   const conta = await createConta('Ana', 'S', 'a1@example.com', 'hash', 3);
-  registrarPasta(conta.id);
 
   const res = await enviarArquivos(postArquivos(conta.id, [['foto.png', PNG_1X1]]));
   expect(res.status).toBe(201);
   const corpo = await res.json();
   expect(corpo.criados).toHaveLength(1);
   expect(corpo.recusados).toHaveLength(0);
-  // A resposta não expõe caminho de disco nem hash.
+  // A resposta não expõe chave de storage nem hash.
   expect(corpo.criados[0].caminho).toBeUndefined();
   expect(corpo.criados[0].hash).toBeUndefined();
   expect(corpo.criados[0].nome).toBe('foto.png');
@@ -73,18 +81,17 @@ test('enviar PNG grava a linha e os bytes em uploads/biblioteca', async () => {
   const { rows } = await pool.query('SELECT caminho, origem FROM arquivos WHERE conta_id = $1', [conta.id]);
   expect(rows).toHaveLength(1);
   expect(rows[0].origem).toBe('biblioteca');
-  // Barras explícitas: o valor entra no banco e é relido em Linux (ver piper.ts).
+  // Barras explícitas: o valor é a chave do objeto, sempre separada por '/'.
   expect(rows[0].caminho).toContain('/');
   expect(rows[0].caminho).not.toContain('\\');
 
-  const absoluto = path.join(process.cwd(), ...rows[0].caminho.split('/'));
-  const gravado = await fs.readFile(absoluto);
-  expect(gravado.equals(PNG_1X1)).toBe(true);
+  const gravado = storageStore.get(rows[0].caminho);
+  expect(gravado).toBeDefined();
+  expect(gravado!.bytes.equals(PNG_1X1)).toBe(true);
 });
 
 test('mesmo conteúdo enviado duas vezes não duplica bytes nem linha', async () => {
   const conta = await createConta('Ana', 'S', 'a2@example.com', 'hash', 3);
-  registrarPasta(conta.id);
 
   const primeiro = (await (await enviarArquivos(postArquivos(conta.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
   const segundoRes = await enviarArquivos(postArquivos(conta.id, [['copia-de-foto.png', PNG_1X1]]));
@@ -97,14 +104,12 @@ test('mesmo conteúdo enviado duas vezes não duplica bytes nem linha', async ()
 
   const { rows } = await pool.query('SELECT count(*)::int AS c FROM arquivos WHERE conta_id = $1', [conta.id]);
   expect(rows[0].c).toBe(1);
-  const pasta = path.join(process.cwd(), 'uploads', 'biblioteca', conta.id);
-  const nomes = await fs.readdir(pasta);
-  expect(nomes).toHaveLength(1);
+  // Um único objeto subiu: a segunda vez foi dedupe por hash, sem upload.
+  expect(storageStore.size).toBe(1);
 });
 
 test('PDF é aceito e arquivo desconhecido é recusado', async () => {
   const conta = await createConta('Ana', 'S', 'a3@example.com', 'hash', 3);
-  registrarPasta(conta.id);
 
   const res = await enviarArquivos(postArquivos(conta.id, [
     ['apostila.pdf', PDF_FAKE],
@@ -123,7 +128,6 @@ test('PDF é aceito e arquivo desconhecido é recusado', async () => {
 
 test('arquivo acima do limite de tamanho é recusado', async () => {
   const conta = await createConta('Ana', 'S', 'a4@example.com', 'hash', 3);
-  registrarPasta(conta.id);
   // PNG válido + cauda para passar dos 10 MB: o magic number continua de PNG, então
   // a recusa tem que vir do tamanho, não do tipo.
   const gigante = Buffer.concat([PNG_1X1, Buffer.alloc(11 * 1024 * 1024, 0x41)]);
@@ -141,8 +145,6 @@ test('arquivo acima do limite de tamanho é recusado', async () => {
 test('GET lista só os arquivos da conta da sessão', async () => {
   const a = await createConta('Ana', 'S', 'a5@example.com', 'hash', 3);
   const b = await createConta('Bob', 'T', 'a6@example.com', 'hash', 3);
-  registrarPasta(a.id);
-  registrarPasta(b.id);
 
   await enviarArquivos(postArquivos(a.id, [['de-a.png', PNG_1X1]]));
   await enviarArquivos(postArquivos(b.id, [['de-b.pdf', PDF_FAKE]]));
@@ -158,7 +160,6 @@ test('GET lista só os arquivos da conta da sessão', async () => {
 test('conteudo devolve os bytes com mime e Vary: Authorization; outra conta toma 404', async () => {
   const a = await createConta('Ana', 'S', 'a7@example.com', 'hash', 3);
   const b = await createConta('Bob', 'T', 'a8@example.com', 'hash', 3);
-  registrarPasta(a.id);
 
   const criado = (await (await enviarArquivos(postArquivos(a.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
 
@@ -173,14 +174,12 @@ test('conteudo devolve os bytes com mime e Vary: Authorization; outra conta toma
   expect(resB.status).toBe(404);
 });
 
-test('DELETE remove a linha e o arquivo do disco; segunda exclusão toma 404', async () => {
+test('DELETE remove a linha e o objeto do storage; segunda exclusão toma 404', async () => {
   const conta = await createConta('Ana', 'S', 'a9@example.com', 'hash', 3);
-  registrarPasta(conta.id);
 
   const criado = (await (await enviarArquivos(postArquivos(conta.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
   const { rows: antes } = await pool.query('SELECT caminho FROM arquivos WHERE id = $1', [criado.id]);
-  const absoluto = path.join(process.cwd(), ...antes[0].caminho.split('/'));
-  expect(await fs.readFile(absoluto) !== null).toBe(true);
+  expect(storageStore.has(antes[0].caminho)).toBe(true);
 
   const res = await excluirArquivo(
     reqComToken(conta.id, `http://localhost/api/arquivos/${criado.id}`),
@@ -190,9 +189,7 @@ test('DELETE remove a linha e o arquivo do disco; segunda exclusão toma 404', a
 
   const { rows: depois } = await pool.query('SELECT count(*)::int AS c FROM arquivos WHERE id = $1', [criado.id]);
   expect(depois[0].c).toBe(0);
-  let sumiu = false;
-  try { await fs.access(absoluto); } catch { sumiu = true; }
-  expect(sumiu).toBe(true);
+  expect(storageStore.has(antes[0].caminho)).toBe(false);
 
   const res2 = await excluirArquivo(
     reqComToken(conta.id, `http://localhost/api/arquivos/${criado.id}`),
@@ -204,7 +201,6 @@ test('DELETE remove a linha e o arquivo do disco; segunda exclusão toma 404', a
 test('DELETE de outra conta não remove o arquivo (404)', async () => {
   const a = await createConta('Ana', 'S', 'a10@example.com', 'hash', 3);
   const b = await createConta('Bob', 'T', 'a11@example.com', 'hash', 3);
-  registrarPasta(a.id);
 
   const criado = (await (await enviarArquivos(postArquivos(a.id, [['foto.png', PNG_1X1]]))).json()).criados[0];
   const res = await excluirArquivo(reqComToken(b.id, `http://localhost/api/arquivos/${criado.id}`), { params: { id: criado.id } });
@@ -214,7 +210,7 @@ test('DELETE de outra conta não remove o arquivo (404)', async () => {
   expect(rows[0].c).toBe(1);
 });
 
-test('id malformado na exclusão e no conteúdo responde 404 sem tocar o disco', async () => {
+test('id malformado na exclusão e no conteúdo responde 404 sem tocar o storage', async () => {
   const conta = await createConta('Ana', 'S', 'a12@example.com', 'hash', 3);
   for (const id of ['../../etc/passwd', 'x', '']) {
     const del = await excluirArquivo(reqComToken(conta.id), { params: { id } });

@@ -18,6 +18,21 @@ process.env.JWT_SECRET = 'segredo-de-teste-com-pelo-menos-32-caracteres';
 const { gerarQuestoes } = vi.hoisted(() => ({ gerarQuestoes: vi.fn() }));
 vi.mock('@/lib/llm', () => ({ gerarQuestoes }));
 
+// Bytes da biblioteca saíram do disco para o object storage. Mock de memória (sem
+// rede, sem bucket) com a mesma interface de lib/uploads/storage; o mock pega porque
+// entra pelo alias '@' que resolve o mesmo arquivo que biblioteca.ts importa.
+const { storageStore } = vi.hoisted(() => ({ storageStore: new Map<string, Buffer>() }));
+vi.mock('@/lib/uploads/storage', () => ({
+  bucket: () => 'uploads',
+  storageUpload: vi.fn(async (chave: string, bytes: Buffer) => { storageStore.set(chave, Buffer.from(bytes)); }),
+  storageDownload: vi.fn(async (chave: string) => {
+    const b = storageStore.get(chave);
+    if (!b) throw new Error(`storage download "${chave}": não encontrado`);
+    return Buffer.from(b);
+  }),
+  storageRemove: vi.fn(async (chaves: string[]) => { for (const c of chaves) storageStore.delete(c); }),
+}));
+
 const questoesFixas = [
   { tipo: 'multipla_escolha', enunciado: 'q', opcoes: ['A'], resposta_correta: 'A', dica: '' },
 ];
@@ -26,6 +41,7 @@ beforeAll(async () => { await prepararBanco(); });
 beforeEach(() => {
   gerarQuestoes.mockReset();
   gerarQuestoes.mockImplementation(async () => questoesFixas);
+  storageStore.clear();
 });
 afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
@@ -162,19 +178,7 @@ test('LLM falha com chave pendente: nada persistido, nada debitado', async () =>
 
 // ---------- Biblioteca: arquivamento automático e reuso por id ----------
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { PNG_1X1, PDF_FAKE } from '../fixtures/arquivos';
-
-const pastasDaBiblioteca: string[] = [];
-afterEach(async () => {
-  for (const pasta of pastasDaBiblioteca) await fs.rm(pasta, { recursive: true, force: true });
-  pastasDaBiblioteca.length = 0;
-});
-
-function vigiarBiblioteca(contaId: string) {
-  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', contaId));
-}
 
 const postComMaterial = (contaId: string, campos: Array<[string, string, Buffer]>) => {
   const form = new FormData();
@@ -193,7 +197,6 @@ const postComMaterial = (contaId: string, campos: Array<[string, string, Buffer]
 
 test('arquivo enviado na criação é arquivado na biblioteca com a origem da rota', async () => {
   const conta = await createConta('Ana', 'Souza', 'arq1@example.com', 'hash', 3);
-  vigiarBiblioteca(conta.id);
 
   const res = await criarRevisao(postComMaterial(conta.id, [['arquivos', 'pagina.jpg', PNG_1X1]]));
   expect(res.status).toBe(200);
@@ -209,7 +212,6 @@ test('arquivo enviado na criação é arquivado na biblioteca com a origem da ro
 
 test('id de arquivo já arquivado é reusado sem reenviar os bytes', async () => {
   const conta = await createConta('Ana', 'Souza', 'arq2@example.com', 'hash', 3);
-  vigiarBiblioteca(conta.id);
 
   await criarRevisao(postComMaterial(conta.id, [['arquivos', 'foto.png', PNG_1X1]]));
   const { rows: guardado } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [conta.id]);
@@ -228,7 +230,6 @@ test('id de arquivo já arquivado é reusado sem reenviar os bytes', async () =>
 test('arquivoIds de outra conta responde 400 e não debita', async () => {
   const a = await createConta('Ana', 'Souza', 'arq3@example.com', 'hash', 3);
   const b = await createConta('Bob', 'Teste', 'arq4@example.com', 'hash', 3);
-  vigiarBiblioteca(a.id);
 
   await criarRevisao(postComMaterial(a.id, [['arquivos', 'de-a.png', PNG_1X1]]));
   const { rows: alheio } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [a.id]);
@@ -250,7 +251,6 @@ test('arquivoId malformado responde 400 (não vira 500)', async () => {
 
 test('PDF enviado na criação entra como texto e é arquivado', async () => {
   const conta = await createConta('Ana', 'Souza', 'arq6@example.com', 'hash', 3);
-  vigiarBiblioteca(conta.id);
 
   const res = await criarRevisao(postComMaterial(conta.id, [['arquivos', 'apostila.pdf', PDF_FAKE]]));
   expect(res.status).toBe(200);

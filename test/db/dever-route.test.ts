@@ -23,6 +23,22 @@ const { gerarStoryboardSeguro, sintetizarPassos } = vi.hoisted(() => ({
 vi.mock('@/lib/deveres/llm', () => ({ gerarStoryboardSeguro }));
 vi.mock('@/lib/deveres/piper', () => ({ sintetizarPassos }));
 
+// Bytes da biblioteca saíram do disco para o object storage (o áudio do dever,
+// que mora em outra rota, continua em disco). Mock de memória com a mesma interface
+// de lib/uploads/storage; entra pelo alias '@' que resolve o mesmo arquivo importado
+// por biblioteca.ts.
+const { storageStore } = vi.hoisted(() => ({ storageStore: new Map<string, Buffer>() }));
+vi.mock('@/lib/uploads/storage', () => ({
+  bucket: () => 'uploads',
+  storageUpload: vi.fn(async (chave: string, bytes: Buffer) => { storageStore.set(chave, Buffer.from(bytes)); }),
+  storageDownload: vi.fn(async (chave: string) => {
+    const b = storageStore.get(chave);
+    if (!b) throw new Error(`storage download "${chave}": não encontrado`);
+    return Buffer.from(b);
+  }),
+  storageRemove: vi.fn(async (chaves: string[]) => { for (const c of chaves) storageStore.delete(c); }),
+}));
+
 const cena = { fundo: '#FDF6EC', primitivos: [] };
 const storyboardFixo = {
   titulo: 'Soma com barras',
@@ -41,6 +57,7 @@ beforeEach(() => {
   sintetizarPassos.mockReset();
   sintetizarPassos.mockImplementation(async (deverId: string, passos: { ordem: number }[]) =>
     passos.map((p) => ({ ordem: p.ordem, caminho: `uploads/deveres/${deverId}/${p.ordem}.wav`, duracao_ms: 2000 })));
+  storageStore.clear();
 });
 afterEach(async () => { await limparTabelas(); });
 afterAll(async () => { await pool.end(); });
@@ -244,12 +261,6 @@ test('GET /api/deveres devolve o dever com total_passos', async () => {
 
 import { PNG_1X1 } from '../fixtures/arquivos';
 
-const pastasDaBiblioteca: string[] = [];
-afterEach(async () => {
-  for (const pasta of pastasDaBiblioteca) await fs.rm(pasta, { recursive: true, force: true });
-  pastasDaBiblioteca.length = 0;
-});
-
 const postComMaterial = (contaId: string, campos: Array<[string, string, Buffer]>) => {
   const form = new FormData();
   form.set('texto', 'dever de matemática');
@@ -266,7 +277,6 @@ const postComMaterial = (contaId: string, campos: Array<[string, string, Buffer]
 
 test('foto do dever enviada na criação é arquivada com origem "dever"', async () => {
   const conta = await createConta('Ana', 'S', 'd19@example.com', 'hash', 3);
-  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', conta.id));
 
   const res = await criarDever(postComMaterial(conta.id, [['arquivos', 'pagina.png', PNG_1X1]]));
   expect(res.status).toBe(200);
@@ -279,7 +289,6 @@ test('foto do dever enviada na criação é arquivada com origem "dever"', async
 
 test('dever reusa item da biblioteca pelo id, sem reenviar bytes', async () => {
   const conta = await createConta('Ana', 'S', 'd20@example.com', 'hash', 3);
-  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', conta.id));
 
   await criarDever(postComMaterial(conta.id, [['arquivos', 'pagina.png', PNG_1X1]]));
   const { rows: guardado } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [conta.id]);
@@ -294,7 +303,6 @@ test('dever reusa item da biblioteca pelo id, sem reenviar bytes', async () => {
 test('arquivoIds de outra conta responde 400 e não debita o saldo', async () => {
   const a = await createConta('Ana', 'S', 'd21@example.com', 'hash', 3);
   const b = await createConta('Bob', 'T', 'd22@example.com', 'hash', 3);
-  pastasDaBiblioteca.push(path.join(process.cwd(), 'uploads', 'biblioteca', a.id));
 
   await criarDever(postComMaterial(a.id, [['arquivos', 'de-a.png', PNG_1X1]]));
   const { rows: alheio } = await pool.query('SELECT id FROM arquivos WHERE conta_id = $1', [a.id]);
