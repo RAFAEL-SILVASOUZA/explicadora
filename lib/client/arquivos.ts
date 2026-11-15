@@ -23,24 +23,91 @@ export interface ResultadoUpload {
   recusados: { nome: string; motivo: string }[];
 }
 
+// Blob.arrayBuffer() existe em todo navegador-alvo, mas não no jsdom (que roda os
+// testes de componente): FileReader cobre os dois mundos com o mesmo resultado.
+function lerArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(leitor.result as ArrayBuffer);
+    leitor.onerror = () => reject(leitor.error ?? new Error('falha ao ler o arquivo'));
+    leitor.readAsArrayBuffer(blob);
+  });
+}
+
+// Primeiros 64 KiB, em base64, para o servidor decidir o tipo (e recusar lixo)
+// ANTES de o celular gastar dados subindo um arquivo que seria recusado no fim.
+async function amostraBase64(arquivo: Blob): Promise<string> {
+  const pedaco = new Uint8Array(await lerArrayBuffer(arquivo.slice(0, 64 * 1024)));
+  // String.fromCharCode com espalhamento estoura a pilha em blocos grandes; por
+  // isso o laço de 32 KiB em vez de uma chamada só.
+  let texto = '';
+  for (let i = 0; i < pedaco.length; i += 0x8000) {
+    texto += String.fromCharCode(...pedaco.subarray(i, i + 0x8000));
+  }
+  return btoa(texto);
+}
+
 /**
- * Envia arquivos para a biblioteca. Aceita File ou Blob com nome explícito (File
- * já traz o nome; Blob não tem nome, então chamadores que fabricam um precisam
- * passá-lo).
+ * Envia arquivos para a biblioteca em três passos POR ARQUIVO (ver
+ * lib/uploads/direto.ts): preparar (rota nossa) → PUT dos bytes (bucket, via URL
+ * assinada) → confirmar (rota nossa). Os bytes nunca atravessam a rota porque o
+ * Vercel corta corpo de requisição em 4.5 MB — e foto de celular passa disso fácil.
+ * Em sequência, um arquivo por vez: é a rede do aluno, não um estúdio de fibra.
+ *
+ * Aceita File ou Blob com nome explícito (File já traz o nome; Blob não tem nome,
+ * então chamadores que fabricam um precisam passá-lo).
  */
 export async function enviarParaBiblioteca(
   arquivos: (File | Blob)[],
   nomes?: string[],
 ): Promise<{ ok: true; resultado: ResultadoUpload } | { ok: false; erro: string }> {
-  const form = new FormData();
-  arquivos.forEach((arquivo, i) => {
-    const nome = arquivo instanceof File ? arquivo.name : (nomes?.[i] || `arquivo-${i + 1}`);
-    form.append('arquivos', arquivo, nome);
+  const resultado: ResultadoUpload = { criados: [], duplicados: [], recusados: [] };
+  const json = (corpo: unknown) => ({
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(corpo),
   });
-  const res = await apiFetch('/api/arquivos', { method: 'POST', body: form });
-  const dados = await res.json().catch(() => null);
-  if (!res.ok) return { ok: false, erro: dados?.error || 'Não consegui enviar seus arquivos.' };
-  return { ok: true, resultado: dados as ResultadoUpload };
+
+  for (const [i, arquivo] of arquivos.entries()) {
+    const nome = arquivo instanceof File ? arquivo.name : (nomes?.[i] || `arquivo-${i + 1}`);
+    const recusa = (motivo: string) => resultado.recusados.push({ nome, motivo });
+    try {
+      const preparado = await (await apiFetch('/api/arquivos/preparar', json({
+        nome,
+        tamanho: arquivo.size,
+        amostra: await amostraBase64(arquivo),
+      }))).json();
+      if (preparado?.situacao === 'recusado') { recusa(preparado.motivo); continue; }
+      if (preparado?.situacao !== 'novo') { recusa('rede'); continue; }
+
+      // PUT sem apiFetch: a URL assinada carrega o token de upload na query, e o
+      // bucket não conhece (nem precisa conhecer) o nosso token de sessão.
+      const subiu = await fetch(preparado.uploadUrl, { method: 'PUT', body: arquivo });
+      if (!subiu.ok) { recusa('rede'); continue; }
+
+      const confirmado = await (await apiFetch('/api/arquivos/confirmar', json({
+        id: preparado.id,
+        chave: preparado.chave,
+        nome,
+      }))).json();
+      if (confirmado?.situacao === 'criado') resultado.criados.push(confirmado.arquivo);
+      else if (confirmado?.situacao === 'duplicado') resultado.duplicados.push(confirmado.arquivo);
+      else recusa(confirmado?.motivo || 'rede');
+    } catch {
+      // Rede caiu no meio do arquivo: o próximo começa do zero, este não.
+      recusa('rede');
+    }
+  }
+
+  // Se NADA passou e o motivo de tudo foi rede, a falha é do envio, não dos
+  // arquivos — a frase genérica antiga, agora com o empurrão certo.
+  const tudoRede = resultado.recusados.length > 0
+    && resultado.recusados.every((r) => r.motivo === 'rede');
+  if (resultado.criados.length === 0 && resultado.duplicados.length === 0 && tudoRede) {
+    return { ok: false, erro: 'Não consegui enviar seus arquivos. Verifique sua conexão e tente de novo.' };
+  }
+  return { ok: true, resultado };
 }
 
 export async function removerDaBiblioteca(id: string): Promise<boolean> {

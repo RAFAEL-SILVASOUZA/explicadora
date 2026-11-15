@@ -40,16 +40,26 @@ test('lista os arquivos enviados com nome e tamanho', async () => {
   expect(linhas).toHaveLength(2);
 });
 
-test('enviar um arquivo chama a rota de upload e recarrega a lista', async () => {
+test('enviar um arquivo faz preparar, PUT direto e confirmar; e recarrega a lista', async () => {
   const user = userEvent.setup();
   localStorage.setItem('estudo_token', 'token-de-teste');
   const metodos: string[] = [];
   let listagens = 0;
   vi.stubGlobal('fetch', async (url: string, options?: RequestInit) => {
     const metodo = options?.method ?? 'GET';
-    metodos.push(`${metodo} ${url}`);
-    if (url === '/api/arquivos' && metodo === 'POST') {
-      return { ok: true, status: 201, json: async () => ({ criados: [arquivo('a1', 'novo.png')], duplicados: [], recusados: [] }) } as Response;
+    // O PUT do bucket é absoluto; nossas rotas são caminhos relativos.
+    metodos.push(`${metodo} ${url.startsWith('https://bucket.test') ? 'BUCKET' : url}`);
+    if (url === '/api/arquivos/preparar') {
+      return { ok: true, json: async () => ({
+        situacao: 'novo', id: 'a1', chave: 'uploads/biblioteca/c1/a1.png',
+        uploadUrl: 'https://bucket.test/upload-sign/a1.png?token=t',
+      }) } as Response;
+    }
+    if (url === 'https://bucket.test/upload-sign/a1.png?token=t') {
+      return { ok: true } as Response;
+    }
+    if (url === '/api/arquivos/confirmar') {
+      return { ok: true, status: 201, json: async () => ({ situacao: 'criado', arquivo: arquivo('a1', 'novo.png') }) } as Response;
     }
     listagens++;
     return { ok: true, json: async () => [arquivo('a1', 'novo.png')] } as Response;
@@ -60,7 +70,16 @@ test('enviar um arquivo chama a rota de upload e recarrega a lista', async () =>
   const input = screen.getByLabelText('Enviar fotos, imagens e PDFs');
   await user.upload(input, new File(['x'], 'novo.png', { type: 'image/png' }));
 
-  await waitFor(() => expect(metodos).toContain('POST /api/arquivos'));
+  // A ordem importa: nada de confirmar antes do PUT subir. ('/api/conta' é o
+  // Header, que abre antes de qualquer upload.)
+  await waitFor(() => expect(metodos).toEqual([
+    'GET /api/conta',
+    'GET /api/arquivos',
+    'POST /api/arquivos/preparar',
+    'PUT BUCKET',
+    'POST /api/arquivos/confirmar',
+    'GET /api/arquivos',
+  ]));
   // Confirmar para o aluno o que entrou (e a lista foi recarregada depois).
   expect(await screen.findByText(/1 arquivo guardado/)).toBeTruthy();
   expect(listagens).toBeGreaterThanOrEqual(2);

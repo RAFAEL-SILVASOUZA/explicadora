@@ -6,8 +6,13 @@ import { arquivarBuffer } from '@/lib/uploads/biblioteca';
 import { MAX_ARQUIVOS_POR_ENVIO } from '@/lib/constantes';
 import { ArquivoPublico, paraArquivoPublico } from '@/lib/uploads/publico';
 
-// A biblioteca do aluno: POST grava em lote, GET lista. A remoção e a leitura dos
-// bytes têm rotas próprias ([id] e [id]/conteudo).
+// A biblioteca do aluno: GET lista. A remoção e a leitura dos bytes têm rotas
+// próprias ([id] e [id]/conteudo).
+//
+// O POST (lote com os bytes no corpo) continua aqui, mas o navegador não o usa:
+// o corpo de um lote estoura os 4.5 MB que o Vercel aceita por requisição, então o
+// envio real é o caminho direto preparar → PUT no bucket → confirmar
+// (app/api/arquivos/preparar e /confirmar, com a lógica em lib/uploads/direto.ts).
 // Os bytes ficam fora de public/ de propósito (mesma razão do áudio do dever):
 // public/ é servido sem autenticação e o material de uma criança não pode ser lido
 // por quem descobrir a URL.

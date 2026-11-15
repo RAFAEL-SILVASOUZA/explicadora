@@ -30,6 +30,37 @@ export function bucket(): string {
   return process.env.SUPABASE_BUCKET || 'uploads';
 }
 
+// URL assinada de UPLOAD: o navegador envia os bytes direto para o bucket com um
+// PUT nela, sem a chave service role e sem apikey — o token na query autoriza
+// sozinho (comportamento documentado do createSignedUploadUrl). Existe porque o
+// Vercel corta corpo de requisição em 4.5 MB (FUNCTION_PAYLOAD_TOO_LARGE, antes do
+// Next rodar): fotos de celular passam disso fácil, e o envio passaria a 413 se os
+// bytes entrassem pela rota. O upsert entra aqui (e não em header do cliente)
+// porque o token já nasce com a flag.
+export async function storageAssinarUpload(objectKey: string): Promise<string> {
+  const { data, error } = await cliente().storage
+    .from(bucket())
+    .createSignedUploadUrl(objectKey, { upsert: true });
+  if (error || !data) {
+    throw new Error(`storage signed upload "${objectKey}": ${error?.message ?? 'resposta vazia'}`);
+  }
+  return data.signedUrl;
+}
+
+// Tamanho real do objeto no bucket, sem baixar nada. O confirmar usa antes do
+// download: um cliente que ignorou o limite e mandou 100 MB pela URL assinada é
+// medido e apagado antes de entrar na memória da função. null = objeto não existe.
+export async function storageTamanhoDaChave(objectKey: string): Promise<number | null> {
+  const { data, error } = await cliente().storage.from(bucket()).info(objectKey);
+  if (error || !data) return null;
+  // Verificado no projeto real (2026-11-15): nesta versão do storage-js o info()
+  // devolve o tamanho em data.size (camelizado no topo); metadata chega {}. O
+  // fallback em metadata.size cobre versões que devolveram o tamanho por lá.
+  const info = data as { size?: number; metadata?: { size?: number } };
+  const tamanho = typeof info.size === 'number' ? info.size : info.metadata?.size;
+  return typeof tamanho === 'number' ? tamanho : null;
+}
+
 export async function storageUpload(
   objectKey: string,
   body: Buffer,

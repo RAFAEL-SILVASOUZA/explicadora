@@ -31,7 +31,9 @@ export function caminhoDoArquivo(contaId: string, id: string, tipo: TipoArquivo)
   return `${RAIZ}/${contaId}/${id}.${tipo}`;
 }
 
-export type RecusaMotivo = 'grande' | 'tipo';
+// 'ausente' só aparece no envio direto (lib/uploads/direto.ts): o confirmar chegou
+// mas o objeto nunca subiu (PUT falhou, URL assinada expirou, objeto apagado).
+export type RecusaMotivo = 'grande' | 'tipo' | 'ausente';
 
 export interface Recusa {
   motivo: RecusaMotivo;
