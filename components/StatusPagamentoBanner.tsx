@@ -1,19 +1,50 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/client/api';
+import { notificarSaldo } from '@/lib/client/saldo';
 
-export default function StatusPagamentoBanner() {
+export default function StatusPagamentoBanner({ onConfirmado }: { onConfirmado?: () => void }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const jaConfirmou = useRef(false);
+
   // Em ambientes de teste mockados sem useSearchParams implementado, faz fallback gracioso
   let status: string | null = null;
+  let orderId: string | null = null;
+
   try {
     const searchParams = typeof useSearchParams === 'function' ? useSearchParams() : null;
     status = searchParams?.get('status') ?? null;
+    orderId = searchParams?.get('order_id') ?? null;
   } catch {
     if (typeof window !== 'undefined') {
-      status = new URLSearchParams(window.location.search).get('status');
+      const sp = new URLSearchParams(window.location.search);
+      status = sp.get('status');
+      orderId = sp.get('order_id');
     }
   }
+
+  useEffect(() => {
+    if (status === 'approved' && orderId && !jaConfirmou.current) {
+      jaConfirmou.current = true;
+      setConfirmando(true);
+      apiFetch('/api/pagamentos/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            notificarSaldo();
+            onConfirmado?.();
+          }
+        })
+        .catch(console.error)
+        .finally(() => setConfirmando(false));
+    }
+  }, [status, orderId, onConfirmado]);
 
   if (!status) return null;
 
@@ -27,7 +58,9 @@ export default function StatusPagamentoBanner() {
         <div>
           <p className="font-extrabold text-base">Pagamento aprovado com sucesso!</p>
           <p className="text-sm opacity-90">
-            Seu saldo de revisões foi creditado. Bons estudos!
+            {confirmando
+              ? 'Confirmando e creditando seu saldo...'
+              : 'Seu saldo de revisões foi creditado. Bons estudos!'}
           </p>
         </div>
       </div>
