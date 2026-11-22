@@ -61,6 +61,9 @@ async function amostraBase64(arquivo: Blob): Promise<string> {
 export async function enviarParaBiblioteca(
   arquivos: (File | Blob)[],
   nomes?: string[],
+  // Avisamos o chamador a cada arquivo que começa (1-indexado): 5 fotos no 4G são
+  // um silêncio longo, e "enviando 2 de 5" transforma silêncio em espera visível.
+  progresso?: (atual: number, total: number) => void,
 ): Promise<{ ok: true; resultado: ResultadoUpload } | { ok: false; erro: string }> {
   const resultado: ResultadoUpload = { criados: [], duplicados: [], recusados: [] };
   const json = (corpo: unknown) => ({
@@ -70,6 +73,7 @@ export async function enviarParaBiblioteca(
   });
 
   for (const [i, arquivo] of arquivos.entries()) {
+    progresso?.(i + 1, arquivos.length);
     const nome = arquivo instanceof File ? arquivo.name : (nomes?.[i] || `arquivo-${i + 1}`);
     const recusa = (motivo: string) => resultado.recusados.push({ nome, motivo });
     try {

@@ -35,9 +35,9 @@ async function abrirMenu() {
   await userEvent.click(screen.getByRole('button', { name: /abrir menu/i }));
 }
 
-test('tem o link Deveres na navegação', async () => {
+test('tem o link Dever de Casa na navegação', async () => {
   await abrirMenu();
-  expect(screen.getByRole('link', { name: /deveres/i })).toBeTruthy();
+  expect(screen.getByRole('link', { name: /dever de casa/i })).toBeTruthy();
 });
 
 test('tem o link Arquivos na navegação', async () => {

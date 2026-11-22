@@ -76,9 +76,13 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
     setHasContent(false);
   };
   
+  const [enviado, setEnviado] = useState(false);
+
   const sendDrawing = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || enviado) return;
+    // Uma segunda leva de pixels não refaz nada: o pai já fechou o modal e disparou a geração.
+    setEnviado(true);
     const base64 = canvas.toDataURL('image/png').split(',')[1];
     onSend(base64);
   };
@@ -90,8 +94,12 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
     return () => window.removeEventListener('keydown', tecla);
   }, [onClose]);
 
+  // Em paisagem de celular o conteúdo do modal é mais alto que a tela: o invólucro
+  // rola (com o wrapper de altura mínima para o card continuar centralizado quando cabe).
+  // O canvas tem teto de altura e as coordenadas já escalam por eixo, então encolher não desloca o traço.
   return (
-    <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-ink/50 z-50 overflow-y-auto p-4">
+      <div className="flex min-h-full items-center justify-center">
       <div className="card w-full max-w-lg" role="dialog" aria-modal="true" aria-label="Desenhar fórmula" tabIndex={-1} autoFocus>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-extrabold text-ink">Desenhar fórmula</h3>
@@ -104,7 +112,7 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
           ref={canvasRef}
           width={500}
           height={350}
-          className="w-full border-2 border-ink/15 rounded-xl cursor-crosshair touch-none"
+          className="w-full max-h-[50vh] border-2 border-ink/15 rounded-xl cursor-crosshair touch-none"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}
@@ -119,11 +127,12 @@ export default function CanvasModal({ onClose, onSend }: CanvasModalProps) {
             <Eraser size={20} aria-hidden="true" />
             Limpar
           </button>
-          <button type="button" onClick={sendDrawing} disabled={!hasContent} className="btn-primary">
+          <button type="button" onClick={sendDrawing} disabled={!hasContent || enviado} className="btn-primary">
             <Send size={20} aria-hidden="true" />
-            Enviar
+            {enviado ? 'Enviando...' : 'Enviar'}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

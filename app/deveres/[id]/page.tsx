@@ -23,6 +23,8 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
   const [carregando, setCarregando] = useState(true);
   const [indice, setIndice] = useState(0);
   const [tocando, setTocando] = useState(false);
+  // O áudio do passo pesa e a rede do aluno é o que é: o botão de play mostra a espera.
+  const [baixandoAudio, setBaixandoAudio] = useState(false);
   const [chaveReinicio, setChaveReinicio] = useState(0);
   const [mostrarTranscricao, setMostrarTranscricao] = useState(false);
   const [movimentoReduzido, setMovimentoReduzido] = useState(false);
@@ -71,14 +73,17 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
     setTocando(false);
     setChaveReinicio((c) => c + 1);
+    setBaixandoAudio(false);
 
     if (passo.audio_path) {
+      setBaixandoAudio(true);
       carregarAudioDever(params.id, passo.ordem).then((u) => {
         if (cancelado) {
           // A object URL foi criada depois do cleanup: revogamos aqui para não vazar.
           if (u) URL.revokeObjectURL(u);
           return;
         }
+        setBaixandoAudio(false);
         if (!u) {
           // Download falhou (rede/401): sem áudio o passo não pode congelar no frame
           // inicial, então o desenho roda pelo tempo estimado e para sozinho.
@@ -192,7 +197,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
             <p className="text-ink/60 text-sm">{dados.dever.disciplina || 'Dever de casa'}</p>
           </div>
           <Link href="/deveres" className="btn-secondary !py-2 !px-4 text-base shrink-0" aria-label="Voltar para os deveres">
-            <ChevronLeft size={18} aria-hidden="true" /> Deveres
+            <ChevronLeft size={18} aria-hidden="true" /> Dever de Casa
           </Link>
         </div>
 
@@ -208,6 +213,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
         <ControlesDever
           tocando={tocando}
+          baixandoAudio={baixandoAudio}
           passoAtual={indice + 1}
           totalPassos={dados.passos.length}
           temTranscricao

@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { CircleDollarSign, KeyRound, List } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
+import Spinner from '@/components/Spinner';
+import { SkeletonTexto } from '@/components/Skeleton';
 import PlanosCard from '@/components/PlanosCard';
 import ResgateTokenCard from '@/components/ResgateTokenCard';
 import { apiFetch, lerToken } from '@/lib/client/api';
@@ -47,17 +49,29 @@ export default function Creditos() {
   const router = useRouter();
   const [dados, setDados] = useState<DadosConta | null>(null);
   const [planos, setPlanos] = useState<Plano[]>([]);
+  // Sem esse estado, a espera vira "Nenhum movimento ainda." (mentira) e a falha vira
+  // "Carregando os planos..." para sempre. Três situações, três telas.
+  const [estado, setEstado] = useState<'carregando' | 'ok' | 'erro'>('carregando');
 
   const carregar = useCallback(async () => {
     if (!lerToken()) {
       router.replace('/login');
       return;
     }
-    const res = await apiFetch('/api/conta');
-    if (!res.ok) return;
-    setDados(await res.json());
-    const planosRes = await apiFetch('/api/planos');
-    if (planosRes.ok) setPlanos(await planosRes.json());
+    setEstado('carregando');
+    try {
+      const res = await apiFetch('/api/conta');
+      if (!res.ok) {
+        setEstado('erro');
+        return;
+      }
+      setDados(await res.json());
+      const planosRes = await apiFetch('/api/planos');
+      if (planosRes.ok) setPlanos(await planosRes.json());
+      setEstado('ok');
+    } catch {
+      setEstado('erro');
+    }
   }, [router]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -86,8 +100,13 @@ export default function Creditos() {
                 <p className="text-2xl font-extrabold text-success-ink">{dados.saldo} revisões</p>
               </div>
             </div>
+          ) : estado === 'erro' ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p role="alert" className="text-danger-ink font-semibold">Não foi possível carregar seus créditos.</p>
+              <button type="button" onClick={carregar} className="btn-secondary !py-2 !px-4 text-base">Tentar de novo</button>
+            </div>
           ) : (
-            <p className="text-ink/70">Carregando...</p>
+            <div className="flex items-center gap-2 text-ink/70"><Spinner /> Carregando...</div>
           )}
           {dados?.saldo === 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -99,14 +118,20 @@ export default function Creditos() {
           )}
         </section>
 
-        <PlanosCard planos={planos} />
+        <PlanosCard planos={planos} carregando={estado === 'carregando'} />
         <ResgateTokenCard onResgate={carregar} />
 
         <section className="card" aria-labelledby="extrato-titulo">
           <h2 id="extrato-titulo" className="text-xl font-extrabold text-ink mb-4 flex items-center gap-2">
             <List size={22} aria-hidden="true" /> Extrato dos créditos
           </h2>
-          {!dados || dados.movimentos.length === 0 ? (
+          {!dados ? (
+            estado === 'erro' ? (
+              <p className="text-ink/70">—</p>
+            ) : (
+              <SkeletonTexto linhas={3} />
+            )
+          ) : dados.movimentos.length === 0 ? (
             <p className="text-ink/70">Nenhum movimento ainda.</p>
           ) : (
             <div className="overflow-x-auto">

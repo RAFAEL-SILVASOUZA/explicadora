@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 import { apiFetch, lerToken, limparToken } from '@/lib/client/api';
 import { assinarSaldo } from '@/lib/client/saldo';
 import Mascote from './Mascote';
+import { SkeletonBloco } from './Skeleton';
 
 interface Sessao {
   role: 'user' | 'admin';
@@ -19,7 +20,7 @@ interface Sessao {
 const LINKS = [
   { href: '/', label: 'Início', icon: Home },
   { href: '/revisoes', label: 'Revisões', icon: BookOpen },
-  { href: '/deveres', label: 'Deveres', icon: Backpack },
+  { href: '/deveres', label: 'Dever de Casa', icon: Backpack },
   { href: '/arquivos', label: 'Arquivos', icon: Library },
   { href: '/creditos', label: 'Créditos', icon: CircleDollarSign },
   { href: '/conta', label: 'Minha conta', icon: User },
@@ -30,6 +31,12 @@ export default function Header() {
   const pathname = usePathname();
   const [sessao, setSessao] = useState<Sessao | null>(null);
   const [menuAberto, setMenuAberto] = useState(false);
+  // "montado" vive um tempo a mais que "aberto": ao fechar, o invólucro continua visível
+  // pela duração da animação — sem isso o painel some sem deslizar de volta (o "nenhum efeito").
+  const [montado, setMontado] = useState(false);
+  // O badge de saldo não pode simplesmente "aparecer do nada": enquanto a primeira
+  // resposta não chega, a gaveta mostra a silhueta dele pulsando.
+  const [saldoChegou, setSaldoChegou] = useState(false);
   const fecharRef = useRef<HTMLButtonElement>(null);
 
   // Uma navegação sem estado ativo não diz onde você está. O prefixo mantém o link
@@ -40,6 +47,7 @@ export default function Header() {
   const carregarSaldo = useCallback(() => {
     if (!lerToken()) {
       setSessao(null);
+      setSaldoChegou(true);
       return;
     }
     apiFetch('/api/conta')
@@ -54,7 +62,8 @@ export default function Header() {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setSaldoChegou(true));
   }, []);
 
   useEffect(() => {
@@ -83,6 +92,16 @@ export default function Header() {
     setMenuAberto(false);
   }, [pathname]);
 
+  // Duração casada com o `duration-200` do painel e do véu abaixo.
+  useEffect(() => {
+    if (menuAberto) {
+      setMontado(true);
+      return;
+    }
+    const t = setTimeout(() => setMontado(false), 200);
+    return () => clearTimeout(t);
+  }, [menuAberto]);
+
   function sair() {
     limparToken();
     setSessao(null);
@@ -93,6 +112,7 @@ export default function Header() {
   const itens = sessao?.role === 'admin' ? [...LINKS, { href: '/admin', label: 'Admin', icon: ShieldCheck }] : LINKS;
 
   return (
+    <>
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-primary/15">
       <div className="shell py-3 flex items-center gap-3">
         {/* Logado, o slot da marca mostra o nome da pessoa; sem sessão, o nome do app. */}
@@ -109,28 +129,32 @@ export default function Header() {
           aria-expanded={menuAberto}
           aria-controls="menu-lateral"
           aria-label={menuAberto ? 'Fechar menu' : 'Abrir menu'}
-          className="ml-auto inline-flex items-center justify-center w-12 h-12 rounded-2xl border-2 border-primary/25 bg-white text-primary transition-colors hover:bg-primary-light focus-visible:outline-offset-2"
+          className="ml-auto inline-flex items-center justify-center w-12 h-12 rounded-2xl border-2 border-primary/25 bg-white text-primary transition-[color,background-color,transform] duration-150 hover:bg-primary-light active:scale-90 focus-visible:outline-offset-2"
         >
           {menuAberto ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
         </button>
       </div>
+    </header>
 
-      {/* Gaveta lateral: o invólucro recortado (e sem ponteiro quando fechada) evita que o
-          painel traduzido para fora da tela crie rolagem horizontal no documento.
-          Fecha ao tocar no véu, no Esc ou ao navegar. */}
+      {/* Gaveta lateral: irmã do header (não filha), porque o backdrop-blur do header criaria
+          um containing block e a gaveta `fixed` ficaria presa na faixa do topo. O invólucro
+          recortado (e sem ponteiro quando fechada) evita que o painel traduzido para fora da
+          tela crie rolagem horizontal. Fecha ao tocar no véu, no Esc ou ao navegar. */}
       <div
         aria-hidden={!menuAberto}
-        className={`fixed inset-0 z-50 overflow-hidden ${menuAberto ? '' : 'invisible pointer-events-none'}`}
+        className={`fixed inset-0 z-50 overflow-hidden ${montado ? '' : 'invisible pointer-events-none'}`}
       >
-        {menuAberto && (
-          <button
-            type="button"
-            onClick={() => setMenuAberto(false)}
-            aria-label="Fechar menu"
-            tabIndex={-1}
-            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-          />
-        )}
+        {/* O véu acompanha a gaveta nos dois sentidos: entra desvanecendo e sai junto dela. */}
+        <button
+          type="button"
+          onClick={() => setMenuAberto(false)}
+          aria-label="Fechar menu"
+          aria-hidden="true"
+          tabIndex={-1}
+          className={`absolute inset-0 bg-ink/40 backdrop-blur-sm transition-opacity duration-200 motion-reduce:transition-none ${
+            menuAberto ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        />
 
         <div
           id="menu-lateral"
@@ -152,21 +176,28 @@ export default function Header() {
           </button>
         </div>
 
-        {sessao && (
+        {sessao ? (
           <div className="px-4 pt-4">
             <span className="badge bg-success-light text-success-ink" aria-label={`Saldo: ${sessao.saldo_revisoes} revisões`}>
               {sessao.saldo_revisoes} revisões
             </span>
           </div>
-        )}
+        ) : !saldoChegou ? (
+          <div className="px-4 pt-4">
+            <SkeletonBloco className="h-7 w-28 rounded-full" />
+          </div>
+        ) : null}
 
         <nav aria-label="Navegação principal" className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
-          {itens.map(({ href, label, icon: Icon }) => (
+          {itens.map(({ href, label, icon: Icon }, i) => (
             <Link
               key={href}
               href={href}
               onClick={() => setMenuAberto(false)}
-              className={`${navClass(href)} w-full !px-4 !py-3 text-lg`}
+              className={`${navClass(href)} w-full !px-4 !py-3 text-lg transition-[transform,opacity,color,background-color] duration-300 motion-reduce:transition-none ${
+                menuAberto ? 'translate-x-0 opacity-100' : 'translate-x-6 opacity-0'
+              }`}
+              style={{ transitionDelay: menuAberto ? `${80 + i * 45}ms` : '0ms' }}
               aria-current={ativo(href) ? 'page' : undefined}
             >
               <Icon size={20} aria-hidden="true" /> {label}
@@ -183,6 +214,6 @@ export default function Header() {
         )}
         </div>
       </div>
-    </header>
+    </>
   );
 }

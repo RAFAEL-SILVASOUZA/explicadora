@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Library, Plus, Upload } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
+import Spinner from '@/components/Spinner';
+import { SkeletonGrade } from '@/components/Skeleton';
 import BibliotecaGrid from '@/components/arquivos/BibliotecaGrid';
 import {
   ArquivoPublico,
@@ -23,6 +25,7 @@ export default function Arquivos() {
   const [arquivos, setArquivos] = useState<ArquivoPublico[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const [progresso, setProgresso] = useState<{ atual: number; total: number } | null>(null);
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
 
@@ -34,6 +37,7 @@ export default function Arquivos() {
   }, [router]);
 
   const carregar = useCallback(() => {
+    setCarregando(true);
     listarArquivosDaConta()
       .then((lista) => setArquivos(lista))
       .catch(() => {})
@@ -66,8 +70,9 @@ export default function Arquivos() {
       return;
     }
 
-    const resposta = await enviarParaBiblioteca(aceitos);
+    const resposta = await enviarParaBiblioteca(aceitos, undefined, (atual, total) => setProgresso({ atual, total }));
     setEnviando(false);
+    setProgresso(null);
     if (!resposta.ok) {
       setErro(resposta.erro);
       return;
@@ -141,10 +146,13 @@ export default function Arquivos() {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={enviando}
+            aria-busy={enviando}
             className="btn-primary !w-auto !text-lg !py-3 focus-visible:outline-offset-4"
           >
-            <Plus size={22} aria-hidden="true" />
-            {enviando ? 'Enviando...' : 'Adicionar arquivos'}
+            {enviando ? <Spinner tamanho="sm" corDoAnel="border-white" /> : <Plus size={22} aria-hidden="true" />}
+            {enviando
+              ? (progresso ? `Enviando ${progresso.atual} de ${progresso.total}...` : 'Enviando...')
+              : 'Adicionar arquivos'}
           </button>
           <p className="text-sm text-ink/50 mt-3">
             PNG, JPG, WEBP e PDF. Até {MAX_ARQUIVOS_POR_ENVIO} arquivos por envio e{' '}
@@ -164,7 +172,7 @@ export default function Arquivos() {
         )}
 
         {carregando ? (
-          <p className="text-ink/70">Carregando seus arquivos...</p>
+          <SkeletonGrade quantidade={6} className="sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 sm:gap-3" />
         ) : arquivos.length === 0 ? (
           <div className="card text-center">
             <div className="flex justify-center mb-4">

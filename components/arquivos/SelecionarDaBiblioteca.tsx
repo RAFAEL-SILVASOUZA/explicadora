@@ -57,8 +57,15 @@ export default function SelecionarDaBiblioteca({
     <div className="bg-white rounded-2xl border-2 border-ink/15 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <label className="block text-xl font-semibold text-ink">Usar arquivos da minha biblioteca</label>
-        <button type="button" onClick={carregar} className="btn-secondary !py-2 !px-3 text-base">
-          <RefreshCw size={18} aria-hidden="true" /> Atualizar lista
+        <button
+          type="button"
+          onClick={carregar}
+          disabled={carregando}
+          aria-busy={carregando}
+          className="btn-secondary !py-2 !px-3 text-base"
+        >
+          <RefreshCw size={18} aria-hidden="true" className={carregando ? 'animate-spin motion-reduce:animate-none' : ''} />
+          Atualizar lista
         </button>
       </div>
 

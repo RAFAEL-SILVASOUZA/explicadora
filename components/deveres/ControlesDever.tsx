@@ -1,9 +1,12 @@
 'use client';
 
 import { ChevronLeft, ChevronRight, FileText, Pause, Play, RotateCcw } from 'lucide-react';
+import Spinner from '@/components/Spinner';
 
 interface Props {
   tocando: boolean;
+  // Áudio do passo ainda em download: o play vira spinner e não aceita clique.
+  baixandoAudio?: boolean;
   passoAtual: number;
   totalPassos: number;
   temTranscricao: boolean;
@@ -26,9 +29,12 @@ export default function ControlesDever(p: Props) {
         <ChevronLeft size={22} aria-hidden="true" />
       </button>
 
-      <button type="button" onClick={p.onPlayPause} className="btn-primary !w-auto !px-6"
-        aria-label={p.tocando ? 'Pausar a explicação' : 'Ouvir a explicação'}>
-        {p.tocando ? <Pause size={24} aria-hidden="true" /> : <Play size={24} aria-hidden="true" />}
+      <button type="button" onClick={p.onPlayPause} disabled={p.baixandoAudio} aria-busy={p.baixandoAudio}
+        className="btn-primary !w-auto !px-6"
+        aria-label={p.baixandoAudio ? 'Baixando o áudio do passo' : p.tocando ? 'Pausar a explicação' : 'Ouvir a explicação'}>
+        {p.baixandoAudio
+          ? <Spinner tamanho="sm" corDoAnel="border-white" label="Baixando o áudio do passo…" />
+          : p.tocando ? <Pause size={24} aria-hidden="true" /> : <Play size={24} aria-hidden="true" />}
       </button>
 
       <button type="button" onClick={p.onRepetir} className="btn-secondary !w-auto" aria-label="Repetir este passo">

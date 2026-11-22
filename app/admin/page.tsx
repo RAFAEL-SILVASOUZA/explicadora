@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, Copy, Search, Trash2, Undo2 } from 'lucide-react';
 import Header from '@/components/Header';
+import Spinner from '@/components/Spinner';
 import { apiFetch, lerToken } from '@/lib/client/api';
 import { formatarPreco } from '@/lib/client/format';
 import { Plano } from '@/lib/types';
@@ -52,6 +53,9 @@ export default function Admin() {
   const [busca, setBusca] = useState('');
   const [pendente, setPendente] = useState<{ codigo: string; acao: Acao } | null>(null);
   const [executando, setExecutando] = useState(false);
+  // Sem isso, a primeira tela mostra "Nenhum código gerado ainda." enquanto a
+  // lista ainda está a caminho — um vazio que é mentira.
+  const [carregandoLista, setCarregandoLista] = useState(true);
 
   useEffect(() => {
     if (!lerToken()) {
@@ -71,8 +75,11 @@ export default function Admin() {
       .catch(() => {});
   }, [router]);
 
+  // Devolve a Promise da lista: quem chama pode `await carregar()` e só então
+  // liberar o botão — hoje o "Gerando..." terminava antes da tabela atualizar.
   const carregar = useCallback(() => {
-    apiFetch('/api/admin/tokens').then(async (res) => {
+    setCarregandoLista(true);
+    const lista = apiFetch('/api/admin/tokens').then(async (res) => {
       if (res.status === 403) {
         setErro('Essa área é só do administrador.');
         return;
@@ -80,11 +87,12 @@ export default function Admin() {
       if (!res.ok) return;
       setErro('');
       setTokens(await res.json());
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setCarregandoLista(false));
     apiFetch('/api/planos').then(async (res) => {
       if (!res.ok) return;
       setPlanos(await res.json());
     }).catch(() => {});
+    return lista;
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -173,10 +181,12 @@ export default function Admin() {
         <section className="card" aria-labelledby="lote-titulo">
           <h2 id="lote-titulo" className="text-xl font-extrabold text-ink mb-4">Gerar lote de códigos</h2>
           <form onSubmit={gerar} className="flex flex-wrap gap-3 items-end" noValidate>
-            <div>
+            {/* A option mais longa define a largura intrínseca do select: sem o teto
+                abaixo do breakpoint ele estourava a tela em celulares estreitos. */}
+            <div className="w-full sm:w-auto min-w-0 max-w-full">
               <label htmlFor="plano" className="block text-sm font-semibold mb-1">Plano</label>
               <select id="plano" value={plano} onChange={(e) => setPlano(e.target.value)}
-                className="input !w-auto">
+                className="input !w-full sm:!w-auto max-w-full">
                 {planosComCodigo.map((p) => (
                   <option key={p.codigo} value={p.codigo}>
                     {p.nome} ({p.revisoes} revisões · {formatarPreco(p.preco_cents)})
@@ -229,7 +239,14 @@ export default function Admin() {
               placeholder="Filtrar por código, plano ou email" className="input pl-10" />
           </div>
 
-          {tokens.length === 0 ? (
+          {carregandoLista ? (
+            <div role="status" aria-label="Carregando códigos…" className="space-y-3">
+              <span className="sr-only">Carregando códigos…</span>
+              {[0, 1, 2].map((i) => (
+                <div key={i} aria-hidden="true" className="animate-pulse h-12 rounded-xl bg-ink/10 motion-reduce:animate-none" />
+              ))}
+            </div>
+          ) : tokens.length === 0 ? (
             <p className="text-ink/70">Nenhum código gerado ainda.</p>
           ) : filtrados.length === 0 ? (
             <p className="text-ink/70">Nenhum código corresponde ao filtro.</p>
@@ -253,13 +270,16 @@ export default function Admin() {
                     const podeExcluir = t.status === 'disponivel';
                     return (
                       <tr key={t.codigo} className="border-t border-gray-100">
-                        <td className="py-2 font-mono flex items-center gap-2">
-                          {t.codigo}
-                          <button type="button" onClick={() => copiar(t.codigo)}
-                            aria-label={`Copiar código ${t.codigo}`}
-                            className="p-2 rounded-lg hover:bg-primary-light text-primary">
-                            <Copy size={16} aria-hidden="true" />
-                          </button>
+                        {/* flex no <td> quebra o alinhamento da célula; o alinhamento mora no span. */}
+                        <td className="py-2 font-mono">
+                          <span className="inline-flex items-center gap-2">
+                            {t.codigo}
+                            <button type="button" onClick={() => copiar(t.codigo)}
+                              aria-label={`Copiar código ${t.codigo}`}
+                              className="p-2 rounded-lg hover:bg-primary-light text-primary">
+                              <Copy size={16} aria-hidden="true" />
+                            </button>
+                          </span>
                         </td>
                         <td className="py-2">{t.plano_codigo}</td>
                         <td className="py-2">
@@ -283,8 +303,10 @@ export default function Admin() {
                                 {acaoPendente === 'revogar' ? 'Revogar este código?' : 'Excluir este código?'}
                               </span>
                               <button type="button" onClick={() => executar(t, acaoPendente)}
-                                disabled={executando} className="font-bold text-primary-dark hover:text-primary">
-                                {executando ? '...' : 'Confirmar'}
+                                disabled={executando} aria-busy={executando}
+                                className="font-bold text-primary-dark hover:text-primary inline-flex items-center gap-1">
+                                {executando && <Spinner tamanho="sm" label="Executando…" />}
+                                Confirmar
                               </button>
                               <button type="button" onClick={() => setPendente(null)}
                                 disabled={executando} className="text-ink/60">Cancelar</button>

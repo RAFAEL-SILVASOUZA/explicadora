@@ -29,9 +29,11 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-nunito)', 'system-ui', 'sans-serif'],
       },
+      // Fluidos: as letras grandes da criança escalam com a tela em vez de estourar
+      // o pouco espaço de um celular de 320px. O teto é o tamanho original.
       fontSize: {
-        'enunciado': '1.5rem',
-        'opcao': '1.25rem',
+        'enunciado': ['clamp(1.25rem, 1rem + 2vw, 1.5rem)', { lineHeight: '1.4' }],
+        'opcao': ['clamp(1.125rem, 0.95rem + 1.5vw, 1.25rem)', { lineHeight: '1.4' }],
       },
       borderRadius: {
         'xl': '1rem',
