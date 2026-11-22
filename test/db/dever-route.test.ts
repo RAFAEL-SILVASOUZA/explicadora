@@ -1,14 +1,11 @@
 // @vitest-environment node
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { POST as criarDever } from '../../app/api/dever/route';
 import { GET as listarDeveres } from '../../app/api/deveres/route';
 import { GET as lerDever } from '../../app/api/dever/[id]/route';
-import { GET as lerAudio } from '../../app/api/dever/[id]/audio/[ordem]/route';
-import { criarDever as criarDeverRepo, criarPassos } from '../../lib/repos/deveres';
+import { criarDever as criarDeverRepo, criarSlides } from '../../lib/repos/deveres';
 import { createConta } from '../../lib/repos/contas';
 import { assinarToken } from '../../lib/auth/jwt';
 
@@ -16,17 +13,12 @@ process.env.JWT_SECRET = 'segredo-de-teste-com-pelo-menos-32-caracteres';
 
 // Mock pelos mesmos specifiers que a rota importa, senão o alias do vitest
 // resolve dois módulos e o mock não pega (mesmo motivo de revisao-route.test.ts).
-const { gerarStoryboardSeguro, sintetizarPassos } = vi.hoisted(() => ({
-  gerarStoryboardSeguro: vi.fn(),
-  sintetizarPassos: vi.fn(),
-}));
-vi.mock('@/lib/deveres/llm', () => ({ gerarStoryboardSeguro }));
-vi.mock('@/lib/deveres/piper', () => ({ sintetizarPassos }));
+const { gerarPlanoSeguro } = vi.hoisted(() => ({ gerarPlanoSeguro: vi.fn() }));
+vi.mock('@/lib/deveres/llm', () => ({ gerarPlanoSeguro }));
 
-// Bytes da biblioteca saíram do disco para o object storage (o áudio do dever,
-// que mora em outra rota, continua em disco). Mock de memória com a mesma interface
-// de lib/uploads/storage; entra pelo alias '@' que resolve o mesmo arquivo importado
-// por biblioteca.ts.
+// Bytes da biblioteca saíram do disco para o object storage. Mock de memória com
+// a mesma interface de lib/uploads/storage; entra pelo alias '@' que resolve o
+// mesmo arquivo importado por biblioteca.ts.
 const { storageStore } = vi.hoisted(() => ({ storageStore: new Map<string, Buffer>() }));
 vi.mock('@/lib/uploads/storage', () => ({
   bucket: () => 'uploads',
@@ -39,24 +31,20 @@ vi.mock('@/lib/uploads/storage', () => ({
   storageRemove: vi.fn(async (chaves: string[]) => { for (const c of chaves) storageStore.delete(c); }),
 }));
 
-const cena = { fundo: '#FDF6EC', primitivos: [] };
-const storyboardFixo = {
+const planoFixo = {
   titulo: 'Soma com barras',
   disciplina: 'Matemática',
   resumo_para_pais: 'A Lia explica o método.',
-  passos: [
-    { titulo: 'Primeiro', narracao: 'a', cena },
-    { titulo: 'Depois', narracao: 'b', cena },
+  slides: [
+    { titulo: 'Primeiro', explicacao: 'a' },
+    { titulo: 'Depois', explicacao: 'b' },
   ],
 };
 
 beforeAll(async () => { await prepararBanco(); });
 beforeEach(() => {
-  gerarStoryboardSeguro.mockReset();
-  gerarStoryboardSeguro.mockImplementation(async () => ({ storyboard: storyboardFixo, vazamentoNaoCorrigido: false }));
-  sintetizarPassos.mockReset();
-  sintetizarPassos.mockImplementation(async (deverId: string, passos: { ordem: number }[]) =>
-    passos.map((p) => ({ ordem: p.ordem, caminho: `uploads/deveres/${deverId}/${p.ordem}.wav`, duracao_ms: 2000 })));
+  gerarPlanoSeguro.mockReset();
+  gerarPlanoSeguro.mockImplementation(async () => ({ plano: planoFixo, vazamentoNaoCorrigido: false }));
   storageStore.clear();
 });
 afterEach(async () => { await limparTabelas(); });
@@ -84,7 +72,7 @@ test('sem conteúdo responde 400', async () => {
   expect(res.status).toBe(400);
 });
 
-test('com saldo cria o dever, os passos e debita 1', async () => {
+test('com saldo cria o dever, os slides e debita 1', async () => {
   const conta = await createConta('Ana', 'S', 'd2@example.com', 'hash', 3);
   const res = await criarDever(post(conta.id, 'chave-1'));
   expect(res.status).toBe(200);
@@ -93,10 +81,10 @@ test('com saldo cria o dever, os passos e debita 1', async () => {
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
   expect(rows[0].saldo_revisoes).toBe(2);
 
-  const passos = await pool.query('SELECT ordem, titulo, audio_path, duracao_ms FROM dever_passos WHERE dever_id = $1 ORDER BY ordem', [id]);
-  expect(passos.rows).toHaveLength(2);
-  expect(passos.rows[0].audio_path).toContain('1.wav');
-  expect(passos.rows[0].duracao_ms).toBe(2000);
+  const slides = await pool.query('SELECT ordem, titulo, explicacao FROM dever_slides WHERE dever_id = $1 ORDER BY ordem', [id]);
+  expect(slides.rows).toHaveLength(2);
+  expect(slides.rows[0].titulo).toBe('Primeiro');
+  expect(slides.rows[0].explicacao).toBe('a');
 
   const mov = await pool.query('SELECT dever_id FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
   expect(mov.rows[0].dever_id).toBe(id);
@@ -112,7 +100,7 @@ test('saldo esgotado responde 402 e não cria dever', async () => {
 
 test('LLM falha: nada debitado, nada persistido', async () => {
   const conta = await createConta('Ana', 'S', 'd4@example.com', 'hash', 3);
-  gerarStoryboardSeguro.mockRejectedValueOnce(new Error('LLM offline'));
+  gerarPlanoSeguro.mockRejectedValueOnce(new Error('LLM offline'));
   const res = await criarDever(post(conta.id, 'chave-3'));
   expect(res.status).toBe(500);
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
@@ -132,7 +120,7 @@ test('reenvio com a mesma chave devolve o mesmo dever sem debitar de novo', asyn
 
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
   expect(rows[0].saldo_revisoes).toBe(2);
-  expect(gerarStoryboardSeguro).toHaveBeenCalledTimes(1);
+  expect(gerarPlanoSeguro).toHaveBeenCalledTimes(1);
 });
 
 test('corrida com a mesma chave debita exatamente uma vez', async () => {
@@ -144,18 +132,6 @@ test('corrida com a mesma chave debita exatamente uma vez', async () => {
   expect(rows[0].saldo_revisoes).toBe(2);
   const mov = await pool.query('SELECT count(*)::int AS c FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
   expect(mov.rows[0].c).toBe(1);
-});
-
-test('sem áudio (Piper ausente) cria o dever com audio_path nulo', async () => {
-  const conta = await createConta('Ana', 'S', 'd7@example.com', 'hash', 3);
-  sintetizarPassos.mockImplementation(async (_id: string, passos: { ordem: number }[]) =>
-    passos.map((p) => ({ ordem: p.ordem, caminho: '', duracao_ms: null })));
-  const res = await criarDever(post(conta.id, 'chave-6'));
-  expect(res.status).toBe(200);
-  const { id } = await res.json();
-  const passos = await pool.query('SELECT audio_path, duracao_ms FROM dever_passos WHERE dever_id = $1', [id]);
-  expect(passos.rows[0].audio_path).toBeNull();
-  expect(passos.rows[0].duracao_ms).toBeNull();
 });
 
 const reqComToken = (contaId: string) =>
@@ -171,18 +147,18 @@ test('GET /api/deveres mostra só os deveres da conta', async () => {
   expect(await res.json()).toHaveLength(0);
 });
 
-test('GET /api/dever/[id] devolve dever e passos ordenados', async () => {
+test('GET /api/dever/[id] devolve dever e slides ordenados', async () => {
   const a = await createConta('Ana', 'S', 'd10@example.com', 'hash', 3);
   const id = await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: 'Matemática', conteudo_texto: 'x', resumo_para_pais: null });
-  await criarPassos(pool, id, [
-    { ordem: 1, titulo: 'Primeiro', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
-    { ordem: 2, titulo: 'Depois', narracao: 'b', cena, audio_path: null, duracao_ms: 2000 },
+  await criarSlides(pool, id, [
+    { ordem: 1, titulo: 'Primeiro', explicacao: 'a' },
+    { ordem: 2, titulo: 'Depois', explicacao: 'b' },
   ]);
   const res = await lerDever(reqComToken(a.id), { params: { id } });
   const corpo = await res.json();
   expect(res.status).toBe(200);
   expect(corpo.dever.disciplina).toBe('Matemática');
-  expect(corpo.passos.map((p: { titulo: string }) => p.titulo)).toEqual(['Primeiro', 'Depois']);
+  expect(corpo.slides.map((s: { titulo: string }) => s.titulo)).toEqual(['Primeiro', 'Depois']);
 });
 
 test('conta B não lê dever de A', async () => {
@@ -193,60 +169,12 @@ test('conta B não lê dever de A', async () => {
   expect(res.status).toBe(404);
 });
 
-test('GET de áudio exige posse e devolve o WAV', async () => {
-  const a = await createConta('Ana', 'S', 'd13@example.com', 'hash', 3);
-  const b = await createConta('Bob', 'T', 'd14@example.com', 'hash', 3);
-  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
-  const relativo = `uploads/deveres/${id}/1.wav`;
-  await fs.mkdir(path.join(process.cwd(), 'uploads', 'deveres', id), { recursive: true });
-  await fs.writeFile(path.join(process.cwd(), relativo), Buffer.from('RIFF-dados'));
-
-  await criarPassos(pool, id, [
-    { ordem: 1, titulo: 'a', narracao: 'a', cena, audio_path: relativo, duracao_ms: 1000 },
-  ]);
-
-  const resA = await lerAudio(reqComToken(a.id), { params: { id, ordem: '1' } });
-  expect(resA.status).toBe(200);
-  expect(resA.headers.get('content-type')).toBe('audio/wav');
-  // A resposta depende da posse validada no token: sem Vary, um cache
-  // compartilhado pode servir o áudio de A para B na mesma URL.
-  expect(resA.headers.get('vary')).toBe('Authorization');
-
-  const resB = await lerAudio(reqComToken(b.id), { params: { id, ordem: '1' } });
-  expect(resB.status).toBe(404);
-
-  await fs.rm(path.join(process.cwd(), 'uploads', 'deveres', id), { recursive: true, force: true });
-});
-
-test('áudio de passo inexistente responde 404', async () => {
-  const a = await createConta('Ana', 'S', 'd15@example.com', 'hash', 3);
-  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
-  const res = await lerAudio(reqComToken(a.id), { params: { id, ordem: '9' } });
-  expect(res.status).toBe(404);
-});
-
-// Discrimina o guard Number.isInteger/ordem < 1: sem ele, Number('abc') = NaN e
-// o 404 viria de !passo?.audio_path, com outra mensagem.
-test('ordem não numérica ou < 1 cai no guard de ordem (404 Passo inválido)', async () => {
-  const a = await createConta('Ana', 'S', 'd16@example.com', 'hash', 3);
-  const id = await criarDeverRepo(pool, a.id, { titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null });
-  await criarPassos(pool, id, [
-    { ordem: 1, titulo: 'a', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
-  ]);
-
-  for (const ordem of ['abc', '0', '-1']) {
-    const res = await lerAudio(reqComToken(a.id), { params: { id, ordem } });
-    expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe('Passo inválido.');
-  }
-});
-
-test('GET /api/deveres devolve o dever com total_passos', async () => {
+test('GET /api/deveres devolve o dever com total_slides', async () => {
   const a = await createConta('Ana', 'S', 'd17@example.com', 'hash', 3);
   const id = await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: 'Matemática', conteudo_texto: 'x', resumo_para_pais: null });
-  await criarPassos(pool, id, [
-    { ordem: 1, titulo: 'Primeiro', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
-    { ordem: 2, titulo: 'Depois', narracao: 'b', cena, audio_path: null, duracao_ms: 2000 },
+  await criarSlides(pool, id, [
+    { ordem: 1, titulo: 'Primeiro', explicacao: 'a' },
+    { ordem: 2, titulo: 'Depois', explicacao: 'b' },
   ]);
 
   const res = await listarDeveres(reqComToken(a.id));
@@ -254,7 +182,7 @@ test('GET /api/deveres devolve o dever com total_passos', async () => {
   const corpo = await res.json();
   expect(corpo).toHaveLength(1);
   expect(corpo[0].id).toBe(id);
-  expect(corpo[0].total_passos).toBe(2);
+  expect(corpo[0].total_slides).toBe(2);
 });
 
 // ---------- Biblioteca: o dever usa o mesmo coletor da revisão ----------
@@ -314,20 +242,19 @@ test('arquivoIds de outra conta responde 400 e não debita o saldo', async () =>
   expect(rows[0].saldo_revisoes).toBe(3);
 });
 
-// Insere os passos em ordem decrescente de criação: só o ORDER BY ordem de
-// getPassos devolve 'Primeiro' antes de 'Depois'.
-test('passos vêm em ordem crescente de ordem mesmo inseridos ao contrário', async () => {
+// Insere os slides em ordem decrescente de criação: só o ORDER BY ordem de
+// getSlides devolve 'Primeiro' antes de 'Depois'.
+test('slides vêm em ordem crescente de ordem mesmo inseridos ao contrário', async () => {
   const a = await createConta('Ana', 'S', 'd18@example.com', 'hash', 3);
   const id = await criarDeverRepo(pool, a.id, { titulo: 'T', disciplina: 'Matemática', conteudo_texto: 'x', resumo_para_pais: null });
-  await criarPassos(pool, id, [
-    { ordem: 2, titulo: 'Depois', narracao: 'b', cena, audio_path: null, duracao_ms: 2000 },
-    { ordem: 1, titulo: 'Primeiro', narracao: 'a', cena, audio_path: null, duracao_ms: 1000 },
+  await criarSlides(pool, id, [
+    { ordem: 2, titulo: 'Depois', explicacao: 'b' },
+    { ordem: 1, titulo: 'Primeiro', explicacao: 'a' },
   ]);
 
   const res = await lerDever(reqComToken(a.id), { params: { id } });
   expect(res.status).toBe(200);
   const corpo = await res.json();
-  expect(corpo.passos.map((p: { titulo: string }) => p.titulo)).toEqual(['Primeiro', 'Depois']);
-  expect(corpo.passos.map((p: { ordem: number }) => p.ordem)).toEqual([1, 2]);
+  expect(corpo.slides.map((s: { titulo: string }) => s.titulo)).toEqual(['Primeiro', 'Depois']);
+  expect(corpo.slides.map((s: { ordem: number }) => s.ordem)).toEqual([1, 2]);
 });
-

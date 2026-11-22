@@ -17,7 +17,7 @@ export default function DeverGrid({ deveres }: { deveres: ResumoDever[] }) {
           <p className="font-extrabold text-ink text-lg truncate mb-2">{tituloDoDever(d)}</p>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {d.disciplina && <span className="badge bg-primary-light text-primary-dark">{d.disciplina}</span>}
-            <span className="badge bg-secondary-light text-secondary-ink">{d.total_passos} passos</span>
+            <span className="badge bg-secondary-light text-secondary-ink">{d.total_slides} slides</span>
           </div>
           {d.resumo_para_pais && (
             <p className="text-ink/70 text-sm line-clamp-2 mb-3">{d.resumo_para_pais}</p>

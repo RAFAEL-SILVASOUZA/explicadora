@@ -139,8 +139,8 @@ export async function renomearNaBiblioteca(
 
 /**
  * Abre o arquivo em nova aba. <a href> não serve: o elemento âncora não envia
- * cabeçalho Authorization e a rota é autenticada de propósito. Mesma solução do
- * áudio do dever (lib/client/audio.ts): baixar via apiFetch e abrir pela object URL.
+ * cabeçalho Authorization e a rota é autenticada de propósito. A solução é a
+ * mesma do download autenticado: baixar via apiFetch e abrir pela object URL.
  */
 export async function abrirArquivo(id: string): Promise<boolean> {
   try {

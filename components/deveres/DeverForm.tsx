@@ -86,7 +86,7 @@ export default function DeverForm() {
       <div>
         <LoadingQuestoes />
         <p className="text-center text-ink/60 text-lg -mt-4">
-          A Lia está olhando o dever e preparando os desenhos. Isso pode levar um minuto.
+          A Lia está olhando o dever e preparando a explicação. Isso pode levar um minuto.
         </p>
       </div>
     );
@@ -192,7 +192,7 @@ export default function DeverForm() {
       )}
 
       <p className="text-ink/70 text-center">
-        A Lia explica o dever em desenhos e áudio. Ela nunca entrega a resposta: explica o caminho para a criança fazer sozinha.
+        A Lia explica o dever em slides curtos. Ela nunca entrega a resposta: explica o caminho para a criança fazer sozinha.
       </p>
       <button type="submit" disabled={carregando || (!texto.trim() && arquivos.length === 0 && bibliotecaIds.length === 0)} className="btn-primary">
         <Sparkles size={24} aria-hidden="true" /> Explicar o dever

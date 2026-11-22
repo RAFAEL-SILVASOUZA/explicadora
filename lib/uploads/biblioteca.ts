@@ -8,13 +8,13 @@ import { MIME_POR_TIPO, detectarTipo, TipoArquivo } from './tipos';
 import { storageDownload, storageRemove, storageUpload } from './storage';
 
 // A pasta da biblioteca fica sob uploads/ (fora de public/, que é servido sem
-// autenticação) e separada de uploads/deveres (WAVs do Piper) e dos arquivos soltos
-// que a rota de revisão gravava antes da migration 006.
+// autenticação) e separada dos arquivos soltos que a rota de revisão gravava
+// antes da migration 006.
 const RAIZ = 'uploads/biblioteca';
 
 export type OrigemArquivo = 'biblioteca' | 'revisao' | 'dever';
 
-// UUID regex, o mesmo critério de lib/deveres/piper.ts: id e contaId vêm do banco,
+// UUID regex: id e contaId vêm do banco,
 // mas caminho é montado a partir deles. Um uuid forjado ('../../etc') escreveria fora
 // de uploads/biblioteca/.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

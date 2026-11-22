@@ -1,7 +1,8 @@
 # Dever de Casa com Explicadora Visual (canvas + áudio)
 
 Data: 2026-10-14
-Status: aprovado em conversa, aguardando revisão escrita
+Status: SUBSTITUÍDA em 2026-11-22 por `2026-11-22-dever-de-casa-slides-design.md` — o aluno
+pediu explicação direta; canvas, animação e áudio (Piper) foram removidos do produto.
 
 ## 1. Objetivo
 

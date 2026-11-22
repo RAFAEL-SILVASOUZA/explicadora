@@ -11,7 +11,7 @@ test('migração cria as tabelas do modelo', async () => {
      WHERE table_schema = 'public' ORDER BY table_name`
   );
   expect(rows.map(r => r.table_name)).toEqual([
-    'arquivos', 'contas', 'dever_passos', 'deveres', 'lotes', 'migrations', 'movimentos_saldo',
+    'arquivos', 'contas', 'dever_slides', 'deveres', 'lotes', 'migrations', 'movimentos_saldo',
     'planos', 'questoes', 'respostas', 'revisoes', 'tokens',
   ]);
 });
@@ -82,4 +82,14 @@ test('migração 005 cria a chave única parcial de deveres', async () => {
   expect(idxRows[0].indexdef).toContain('UNIQUE');
   expect(idxRows[0].indexdef).toContain('(conta_id, chave_idempotencia)');
   expect(idxRows[0].indexdef).toContain('WHERE (chave_idempotencia IS NOT NULL)');
+});
+
+// Migração 007: o dever virou slide. A tabela troca de nome, a explicação
+// substitui a narração e o que alimentava canvas e áudio sai do banco.
+test('migração 007 deixa dever_slides só com titulo e explicacao', async () => {
+  const { rows } = await pool.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_name = 'dever_slides' ORDER BY column_name`,
+  );
+  expect(rows.map(r => r.column_name)).toEqual(['dever_id', 'explicacao', 'id', 'ordem', 'titulo']);
 });

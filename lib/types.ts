@@ -97,38 +97,31 @@ export interface Dever {
   criado_em: string;
 }
 
-export interface DeverPasso {
+export interface DeverSlide {
   id: number;
   dever_id: string;
   ordem: number;
   titulo: string;
-  narracao: string;
-  cena: unknown;
-  audio_path: string | null;
-  duracao_ms: number | null;
+  explicacao: string;
 }
 
 export interface ResumoDever extends Dever {
-  total_passos: number;
+  total_slides: number;
 }
 
 export interface DeverCompleto {
   dever: Dever;
-  passos: DeverPasso[];
+  slides: DeverSlide[];
 }
 
-export interface PassoInput {
+export interface SlideInput {
   ordem: number;
   titulo: string;
-  narracao: string;
-  cena: unknown;
-  audio_path: string | null;
-  duracao_ms: number | null;
+  explicacao: string;
 }
 
 // Um item da biblioteca do aluno. `caminho` é relativo a process.cwd() e usa barras
-// explícitas (mesma razão de caminhoDoAudio em lib/deveres/piper.ts: o valor entra no
-// banco e é relido por outro SO). `hash` é o sha256 do conteúdo, usado no dedupe.
+// explícitas (o valor entra no banco e é relido por outro SO). `hash` é o sha256 do conteúdo, usado no dedupe.
 // `origem` documenta de onde o arquivo veio: 'biblioteca', 'revisao' ou 'dever'.
 export interface Arquivo {
   id: string;

@@ -1,19 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Frown } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
-import CanvasExplicacao from '@/components/deveres/CanvasExplicacao';
-import ControlesDever from '@/components/deveres/ControlesDever';
-import TranscricaoDever from '@/components/deveres/TranscricaoDever';
+import ControlesSlides from '@/components/deveres/ControlesSlides';
 import { tituloDoDever } from '@/components/deveres/DeverGrid';
 import { apiFetch, lerToken } from '@/lib/client/api';
-import { carregarAudioDever } from '@/lib/client/audio';
-import { duracaoDoPasso } from '@/lib/deveres/timeline';
-import type { Cena } from '@/lib/deveres/cena';
 import type { DeverCompleto } from '@/lib/types';
 
 export default function DeverDetalhe({ params }: { params: { id: string } }) {
@@ -22,25 +17,12 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [indice, setIndice] = useState(0);
-  const [tocando, setTocando] = useState(false);
-  // O áudio do passo pesa e a rede do aluno é o que é: o botão de play mostra a espera.
-  const [baixandoAudio, setBaixandoAudio] = useState(false);
-  const [chaveReinicio, setChaveReinicio] = useState(0);
-  const [mostrarTranscricao, setMostrarTranscricao] = useState(false);
-  const [movimentoReduzido, setMovimentoReduzido] = useState(false);
-  // Elemento de áudio do passo atual, exposto para play/pause/repetir vindos dos controles.
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!lerToken()) {
       router.replace('/login');
       return;
     }
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setMovimentoReduzido(mq.matches);
-    const ouvir = (e: MediaQueryListEvent) => setMovimentoReduzido(e.matches);
-    mq.addEventListener('change', ouvir);
-    return () => mq.removeEventListener('change', ouvir);
   }, [router]);
 
   const carregar = useCallback(() => {
@@ -56,69 +38,13 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const passo = dados?.passos[indice] ?? null;
-  const duracaoMs = useMemo(
-    () => (passo ? duracaoDoPasso({ narracao: passo.narracao, duracao_ms: passo.duracao_ms }) : 0),
-    [passo],
-  );
+  const slide = dados?.slides[indice] ?? null;
 
-  // Áudio: baixado autenticado e tocado por object URL. Guardado em ref para
-  // revogar quando o passo muda ou o componente desmonta.
-  useEffect(() => {
-    if (!passo) return;
-    let url: string | null = null;
-    let audio: HTMLAudioElement | null = null;
-    let temporizador: ReturnType<typeof setTimeout> | null = null;
-    let cancelado = false;
-
-    setTocando(false);
-    setChaveReinicio((c) => c + 1);
-    setBaixandoAudio(false);
-
-    if (passo.audio_path) {
-      setBaixandoAudio(true);
-      carregarAudioDever(params.id, passo.ordem).then((u) => {
-        if (cancelado) {
-          // A object URL foi criada depois do cleanup: revogamos aqui para não vazar.
-          if (u) URL.revokeObjectURL(u);
-          return;
-        }
-        setBaixandoAudio(false);
-        if (!u) {
-          // Download falhou (rede/401): sem áudio o passo não pode congelar no frame
-          // inicial, então o desenho roda pelo tempo estimado e para sozinho.
-          setTocando(true);
-          temporizador = setTimeout(() => setTocando(false), duracaoMs);
-          return;
-        }
-        url = u;
-        audio = new Audio(u);
-        audioRef.current = audio;
-        audio.addEventListener('ended', () => setTocando(false));
-        audio.play().then(() => setTocando(true)).catch(() => setTocando(false));
-      });
-    } else if (passo.duracao_ms === null) {
-      // Sem áudio: o desenho roda pelo tempo estimado e para sozinho.
-      setTocando(true);
-      const t = setTimeout(() => setTocando(false), duracaoMs);
-      return () => clearTimeout(t);
-    }
-
-    return () => {
-      cancelado = true;
-      if (temporizador) clearTimeout(temporizador);
-      if (audio) { audio.pause(); audio.src = ''; }
-      if (url) URL.revokeObjectURL(url);
-      audioRef.current = null;
-    };
-  }, [params.id, indice, passo, duracaoMs]);
-
-  // Atalhos de teclado: espaço e setas. A criança (e o pai) controla sem mouse.
+  // Atalhos de teclado: setas. O aluno (e o pai) navega sem mouse.
   useEffect(() => {
     const teclas = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement | null;
       if (alvo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName)) return;
-      if (e.code === 'Space') { e.preventDefault(); alternar(); }
       if (e.code === 'ArrowRight') irPara(indice + 1);
       if (e.code === 'ArrowLeft') irPara(indice - 1);
     };
@@ -127,32 +53,8 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
   });
 
   function irPara(novo: number) {
-    if (!dados || novo < 0 || novo >= dados.passos.length) return;
+    if (!dados || novo < 0 || novo >= dados.slides.length) return;
     setIndice(novo);
-  }
-
-  function alternar() {
-    // Pausa/retoma também o áudio real; sem isso a fala continua com o desenho congelado.
-    // Não reinicia o relógio do canvas: assim pausa congela e retoma desenho e áudio
-    // do mesmo ponto (reiniciar aqui faria o desenho recomeçar com a voz atrasada).
-    if (tocando) {
-      audioRef.current?.pause();
-    } else {
-      audioRef.current?.play().catch(() => {});
-    }
-    setTocando((atual) => !atual);
-  }
-
-  function repetir() {
-    // "Repetir este passo" refaz o desenho e o áudio do início (spec §5).
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
-    }
-    // Se o passo já tinha terminado ('ended' zerou tocando), o canvas só acumula
-    // tempo com tocando=true: sem isto a voz toca e o desenho fica parado.
-    setTocando(true);
-    setChaveReinicio((c) => c + 1);
   }
 
   if (carregando) {
@@ -166,7 +68,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
     );
   }
 
-  if (erro || !dados || !passo) {
+  if (erro || !dados || !slide) {
     return (
       <>
         <Header />
@@ -182,14 +84,10 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
     );
   }
 
-  const cena = (passo.cena ?? { fundo: '#FDF6EC', primitivos: [] }) as Cena;
-
   return (
     <>
       <Header />
-      {/* Tela da criança: mais larga que as páginas do pai porque o canvas é o
-          conteúdo principal (desktop-first; no celular ele ocupa a largura toda). */}
-      <main className="shell py-3 sm:py-4 space-y-2 sm:space-y-3">
+      <main className="shell py-3 sm:py-4 space-y-3 sm:space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
           <Mascote humor="feliz" className="w-10 h-10 shrink-0" decorative />
           <div className="min-w-0 flex-1">
@@ -201,34 +99,18 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
           </Link>
         </div>
 
-        <p aria-live="polite" className="text-2xl font-extrabold text-ink">{passo.titulo}</p>
+        {/* O slide é o conteúdo: título curto + explicação em frases curtas. */}
+        <section className="card" aria-label={`Slide ${indice + 1} de ${dados.slides.length}`}>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink mb-3">{slide.titulo}</h2>
+          <p className="text-xl sm:text-2xl text-ink/80 leading-relaxed">{slide.explicacao}</p>
+        </section>
 
-        <CanvasExplicacao
-          cena={cena}
-          duracaoMs={duracaoMs}
-          tocando={tocando}
-          chaveReinicio={chaveReinicio}
-          movimentoReduzido={movimentoReduzido}
-        />
-
-        <ControlesDever
-          tocando={tocando}
-          baixandoAudio={baixandoAudio}
-          passoAtual={indice + 1}
-          totalPassos={dados.passos.length}
-          temTranscricao
-          onPlayPause={alternar}
+        <ControlesSlides
+          slideAtual={indice + 1}
+          totalSlides={dados.slides.length}
           onAnterior={() => irPara(indice - 1)}
           onProximo={() => irPara(indice + 1)}
-          onRepetir={repetir}
-          onAbrirTranscricao={() => setMostrarTranscricao((v) => !v)}
         />
-
-        {mostrarTranscricao && (
-          <section aria-label="Texto da explicação">
-            <TranscricaoDever passos={dados.passos} />
-          </section>
-        )}
       </main>
     </>
   );

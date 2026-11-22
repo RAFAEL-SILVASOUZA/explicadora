@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { autenticar, naoAutorizado } from '@/lib/auth/guard';
 import { consumirSaldo } from '@/lib/quota';
-import { criarDever, criarPassos, getDeverPorChave } from '@/lib/repos/deveres';
+import { criarDever, criarSlides, getDeverPorChave } from '@/lib/repos/deveres';
 import { vincularMovimentoADever } from '@/lib/repos/movimentos';
 import { comTransacao } from '@/lib/repos/transacao';
 import { getPool } from '@/lib/db/pool';
-import { gerarStoryboardSeguro } from '@/lib/deveres/llm';
-import { sintetizarPassos } from '@/lib/deveres/piper';
+import { gerarPlanoSeguro } from '@/lib/deveres/llm';
 import { MaterialInvalido, coletarMateriais } from '@/lib/uploads/materiais';
 
 type ResultadoCriacao =
@@ -45,33 +44,21 @@ export async function POST(req: NextRequest) {
       const saldo = await consumirSaldo(client, auth.contaId);
       if (saldo === null) return { status: 402 };
 
-      const { storyboard } = await gerarStoryboardSeguro(conteudoCompleto, imagens);
+      const { plano } = await gerarPlanoSeguro(conteudoCompleto, imagens);
 
-      // O id do dever é reservado antes da síntese: os WAVs são gravados na pasta
-      // dele. Se a transação falhar depois, sobram arquivos órfãos (removidos por
-      // scripts/limpar-uploads-orfaos.ts), nunca um áudio apontando para outro dever.
       const id = await criarDever(client, auth.contaId, {
-        titulo: storyboard.titulo || null,
-        disciplina: storyboard.disciplina || null,
+        titulo: plano.titulo || null,
+        disciplina: plano.disciplina || null,
         conteudo_texto: conteudoCompleto,
-        resumo_para_pais: storyboard.resumo_para_pais || null,
+        resumo_para_pais: plano.resumo_para_pais || null,
         chaveIdempotencia: chave,
       });
 
-      const audios = await sintetizarPassos(id, storyboard.passos.map((p, i) => ({ ordem: i + 1, narracao: p.narracao })));
-      const audioPorOrdem = new Map(audios.map((a) => [a.ordem, a]));
-
-      await criarPassos(client, id, storyboard.passos.map((p, i) => {
-        const audio = audioPorOrdem.get(i + 1);
-        return {
-          ordem: i + 1,
-          titulo: p.titulo,
-          narracao: p.narracao,
-          cena: p.cena,
-          audio_path: audio?.caminho || null,
-          duracao_ms: audio?.duracao_ms ?? null,
-        };
-      }));
+      await criarSlides(client, id, plano.slides.map((s, i) => ({
+        ordem: i + 1,
+        titulo: s.titulo,
+        explicacao: s.explicacao,
+      })));
 
       await vincularMovimentoADever(client, auth.contaId, id);
       return { status: 200, id, saldo };
