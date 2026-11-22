@@ -141,3 +141,17 @@ export interface Arquivo {
   origem: string;
   criado_em: string;
 }
+
+export type StatusPedido = 'pending' | 'approved' | 'failed' | 'cancelled';
+
+export interface Pedido {
+  id: string;
+  conta_id: string;
+  plano_codigo: string;
+  mp_order_id: string | null;
+  status: StatusPedido;
+  revisoes: number;
+  criado_em: string;
+  atualizado_em: string;
+}
+

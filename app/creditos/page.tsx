@@ -1,15 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CircleDollarSign, KeyRound, List } from 'lucide-react';
+import { CircleDollarSign, List } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
 import Spinner from '@/components/Spinner';
 import { SkeletonTexto } from '@/components/Skeleton';
 import PlanosCard from '@/components/PlanosCard';
 import ResgateTokenCard from '@/components/ResgateTokenCard';
+import StatusPagamentoBanner from '@/components/StatusPagamentoBanner';
 import { apiFetch, lerToken } from '@/lib/client/api';
 import { Plano } from '@/lib/types';
 
@@ -18,10 +19,11 @@ interface Movimento {
   quantidade: number;
   plano_codigo: string | null;
   // A API /api/conta devolve os vínculos do movimento (extratoConta seleciona
-  // m.dever_id/m.revisao_id): é o que permite ao extrato distinguir consumo de
-  // dever de consumo de revisão.
+  // m.dever_id/m.revisao_id/m.pedido_id): é o que permite ao extrato distinguir
+  // consumo de dever, consumo de revisão e resgates via token ou pagamento.
   dever_id?: string | null;
   revisao_id?: string | null;
+  pedido_id?: string | null;
   criado_em: string;
 }
 
@@ -80,11 +82,15 @@ export default function Creditos() {
     <>
       <Header />
       <main className="shell py-8 space-y-6">
+        <Suspense fallback={null}>
+          <StatusPagamentoBanner />
+        </Suspense>
+
         <h1 className="text-2xl sm:text-3xl font-extrabold text-primary flex items-center gap-2">
           <CircleDollarSign size={30} aria-hidden="true" /> Créditos
         </h1>
         <p className="text-ink/70">
-          Aqui você vê quanto saldo tem, contrata um pacote e cola o código que recebeu para somar revisões.
+          Aqui você vê quanto saldo tem, contrata um pacote com PIX ou Cartão e cola o código que recebeu para somar revisões.
         </p>
 
         <section className="card" aria-labelledby="saldo-titulo">
@@ -112,7 +118,7 @@ export default function Creditos() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Mascote humor="pensando" className="w-12 h-12 shrink-0" decorative />
               <p className="text-ink/70">
-                Saldo zerado: contrate um pacote abaixo e cole o código para continuar estudando.
+                Saldo zerado: contrate um pacote abaixo ou resgate um código para continuar estudando.
               </p>
             </div>
           )}
