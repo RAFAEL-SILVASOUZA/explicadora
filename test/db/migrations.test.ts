@@ -19,9 +19,9 @@ test('migração cria as tabelas do modelo', async () => {
 test('migração semeia os três planos com os valores do negócio', async () => {
   const { rows } = await pool.query('SELECT codigo, revisoes, preco_cents FROM planos ORDER BY codigo');
   expect(rows).toEqual([
-    { codigo: 'familia', revisoes: 50, preco_cents: 1500 },
-    { codigo: 'free', revisoes: 3, preco_cents: 0 },
-    { codigo: 'pro', revisoes: 20, preco_cents: 500 },
+    { codigo: 'free', revisoes: 2, preco_cents: 0 },
+    { codigo: 'max', revisoes: 15, preco_cents: 1000 },
+    { codigo: 'pro', revisoes: 5, preco_cents: 500 },
   ]);
 });
 
@@ -92,4 +92,15 @@ test('migração 007 deixa dever_slides só com titulo e explicacao', async () =
      WHERE table_name = 'dever_slides' ORDER BY column_name`,
   );
   expect(rows.map(r => r.column_name)).toEqual(['dever_id', 'explicacao', 'id', 'ordem', 'titulo']);
+});
+
+// Migração 008: dever custa meia revisão; saldo e extrato comportam 0,5.
+test('migração 008 deixa saldo e extrato como numeric', async () => {
+  const { rows } = await pool.query(
+    `SELECT table_name, data_type FROM information_schema.columns
+     WHERE (table_name = 'contas' AND column_name = 'saldo_revisoes')
+        OR (table_name = 'movimentos_saldo' AND column_name = 'quantidade')`,
+  );
+  expect(rows).toHaveLength(2);
+  expect(rows.every(r => r.data_type === 'numeric')).toBe(true);
 });

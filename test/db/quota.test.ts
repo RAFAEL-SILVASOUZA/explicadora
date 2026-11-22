@@ -27,6 +27,23 @@ test('consumirSaldo devolve null com saldo 0 e não insere movimento', async () 
   expect(rows).toHaveLength(0);
 });
 
+// Dever de casa custa 0,5 (migration 008): o saldo aceita casa decimal.
+test('consumirSaldo com custo 0,5 decrementa e registra meia revisão', async () => {
+  const conta = await createConta('Ana', 'Souza', 'meia@example.com', 'hash', 3);
+  const novo = await comTransacao((c) => consumirSaldo(c, conta.id, 0.5));
+  expect(novo).toBe(2.5);
+  const { rows } = await pool.query('SELECT tipo, quantidade FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
+  expect(rows).toEqual([{ tipo: 'consumo', quantidade: -0.5 }]);
+});
+
+test('saldo 0,5 paga um dever mas não uma revisão', async () => {
+  const conta = await createConta('Ana', 'Souza', 'ponta@example.com', 'hash', 0.5);
+  expect(await comTransacao((c) => consumirSaldo(c, conta.id))).toBeNull();
+  const { rows: antes } = await pool.query('SELECT id FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
+  expect(antes).toHaveLength(0);
+  expect(await comTransacao((c) => consumirSaldo(c, conta.id, 0.5))).toBe(0);
+});
+
 test('dois consumos simultâneos na mesma conta não gastam a mesma revisão', async () => {
   const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 1);
   const resultados = await Promise.all([

@@ -7,6 +7,12 @@ import { Pool, types } from 'pg';
 // 2^53, o que não acontece com IDs de identidade em produção.
 types.setTypeParser(20, (v: string) => Number(v));
 
+// numeric (oid 1700) também chega como string por padrão. saldo_revisoes e
+// movimentos_saldo.quantidade ganharam meia-revisão (numeric(6,1), migration
+// 008) e são declarados number em todo o código; com meio ponto em binário,
+// 0.5 é exato, então parseFloat não acumula erro nesses valores.
+types.setTypeParser(1700, (v: string) => parseFloat(v));
+
 let pool: Pool | null = null;
 
 // Lê DATABASE_URL no momento da chamada, não no import, para que os testes

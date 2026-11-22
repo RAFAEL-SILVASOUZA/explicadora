@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { KeyRound, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/client/api';
-import { notificarSaldo } from '@/lib/client/saldo';
+import { formatarRevisoes, notificarSaldo } from '@/lib/client/saldo';
 
 interface ResgateResultado {
   plano: string;
@@ -75,7 +75,7 @@ export default function ResgateTokenCard({ onResgate }: { onResgate?: () => void
 
       {ok && (
         <div role="status" className="mt-4 bg-success-light border-2 border-success/40 rounded-2xl p-4 text-success-ink font-semibold">
-          Pacote {ok.plano} resgatado: +{ok.revisoes} revisões. Novo saldo: {ok.novoSaldo}.
+          Pacote {ok.plano} resgatado: +{ok.revisoes} revisões. Novo saldo: {formatarRevisoes(ok.novoSaldo)}.
         </div>
       )}
     </section>

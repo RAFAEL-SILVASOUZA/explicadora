@@ -27,7 +27,7 @@ test('gerarLote cria N tokens do plano pedido', async () => {
 });
 
 test('código de token tem o formato PLANO-XXXX-XXXX', () => {
-  expect(codigoDeToken('familia')).toMatch(/^FAMILIA-[0-9A-Z]{4}-[0-9A-Z]{4}$/);
+  expect(codigoDeToken('max')).toMatch(/^MAX-[0-9A-Z]{4}-[0-9A-Z]{4}$/);
 });
 
 // Ruling GG: `planos` é tabela de referência, não enum no código. Este teste é o que
@@ -46,7 +46,7 @@ test('resgate soma as revisões do plano ao saldo', async () => {
   const [token] = await gerarLote(a.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
   const conta = await usuario('ana@example.com');
   const resultado = await resgateToken(token.codigo, conta.id);
-  expect(resultado).toEqual({ ok: true, plano: 'pro', revisoes: 20, novoSaldo: 20 });
+  expect(resultado).toEqual({ ok: true, plano: 'pro', revisoes: 5, novoSaldo: 5 });
 });
 
 test('resgate de token já resgatado é recusado', async () => {
@@ -81,7 +81,7 @@ test('dois resgates simultâneos do mesmo token: só um soma saldo', async () =>
     'SELECT email, saldo_revisoes FROM contas WHERE saldo_revisoes > 0 ORDER BY email'
   );
   expect(rows).toHaveLength(1);
-  expect(rows[0].saldo_revisoes).toBe(20);
+  expect(rows[0].saldo_revisoes).toBe(5);
 });
 
 test('listarTokens mostra o status derivado, nunca armazenado', async () => {
@@ -117,15 +117,15 @@ test('revogarToken estorna o que não foi usado quando o uso é de até 2', asyn
   await resgateToken(token.codigo, aluna.id);
   for (let i = 0; i < 2; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
   // O estorno devolve o que sobra, e o saldo fica em 0: as 2 usadas já viraram revisão.
-  expect(await revogarToken(token.id)).toEqual({ ok: true, usados: 2, estornado: 18, novoSaldo: 0 });
+  expect(await revogarToken(token.id)).toEqual({ ok: true, usados: 2, estornado: 3, novoSaldo: 0 });
   const { rows } = await pool.query(
     'SELECT tipo, quantidade FROM movimentos_saldo WHERE conta_id = $1 ORDER BY id', [aluna.id],
   );
   expect(rows).toEqual([
-    { tipo: 'resgate', quantidade: 20 },
+    { tipo: 'resgate', quantidade: 5 },
     { tipo: 'consumo', quantidade: -1 },
     { tipo: 'consumo', quantidade: -1 },
-    { tipo: 'revogacao', quantidade: -18 },
+    { tipo: 'revogacao', quantidade: -3 },
   ]);
 });
 
@@ -137,7 +137,7 @@ test('revogarToken recusa quando o aluno usou mais de 2 créditos do token', asy
   for (let i = 0; i < 3; i++) await comTransacao((c) => consumirSaldo(c, aluna.id));
   expect(await revogarToken(token.id)).toEqual({ ok: false, motivo: 'limite_de_uso', usados: 3 });
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [aluna.id]);
-  expect(rows[0].saldo_revisoes).toBe(17);
+  expect(rows[0].saldo_revisoes).toBe(2);
 });
 
 test('revogarToken recusa código que nunca foi resgatado e código já revogado', async () => {

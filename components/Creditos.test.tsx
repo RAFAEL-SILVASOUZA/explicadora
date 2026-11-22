@@ -12,7 +12,9 @@ afterEach(() => {
 });
 
 const contaResposta = {
-  conta: { id: '1', role: 'user', nome: 'Ana', sobrenome: 'Souza', email: 'ana@ex.com', criado_em: '2026-10-01T12:00:00Z' },
+  // conta.saldo_revisoes é o que o Header lê (mesmo formato da rota real);
+  // o `saldo` no topo é o que a página de créditos mostra.
+  conta: { id: '1', role: 'user', nome: 'Ana', sobrenome: 'Souza', email: 'ana@ex.com', saldo_revisoes: 20, criado_em: '2026-10-01T12:00:00Z' },
   plano: 'pro',
   saldo: 20,
   movimentos: [

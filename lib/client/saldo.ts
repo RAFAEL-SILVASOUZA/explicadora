@@ -14,3 +14,9 @@ export function assinarSaldo(callback: () => void): () => void {
   window.addEventListener(EVENTO, callback);
   return () => window.removeEventListener(EVENTO, callback);
 }
+
+// O saldo aceita meia revisão (dever custa 0,5 desde a migration 008). Em
+// pt-BR: "2,5" em vez do ponto decimal cru do JS ("2.5").
+export function formatarRevisoes(n: number): string {
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}

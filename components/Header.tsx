@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Home, BookOpen, User, LogOut, ShieldCheck, CircleDollarSign, Backpack, Library, Menu, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { apiFetch, lerToken, limparToken } from '@/lib/client/api';
-import { assinarSaldo } from '@/lib/client/saldo';
+import { assinarSaldo, formatarRevisoes } from '@/lib/client/saldo';
 import Mascote from './Mascote';
 import { SkeletonBloco } from './Skeleton';
 
@@ -178,8 +178,8 @@ export default function Header() {
 
         {sessao ? (
           <div className="px-4 pt-4">
-            <span className="badge bg-success-light text-success-ink" aria-label={`Saldo: ${sessao.saldo_revisoes} revisões`}>
-              {sessao.saldo_revisoes} revisões
+            <span className="badge bg-success-light text-success-ink" aria-label={`Saldo: ${formatarRevisoes(sessao.saldo_revisoes)} revisões`}>
+              {formatarRevisoes(sessao.saldo_revisoes)} revisões
             </span>
           </div>
         ) : !saldoChegou ? (

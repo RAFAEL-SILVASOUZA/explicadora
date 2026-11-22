@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { autenticar, naoAutorizado } from '@/lib/auth/guard';
-import { consumirSaldo } from '@/lib/quota';
+import { CUSTO_DEVER, consumirSaldo } from '@/lib/quota';
 import { criarDever, criarSlides, getDeverPorChave } from '@/lib/repos/deveres';
 import { vincularMovimentoADever } from '@/lib/repos/movimentos';
 import { comTransacao } from '@/lib/repos/transacao';
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const saldo = await consumirSaldo(client, auth.contaId);
+      const saldo = await consumirSaldo(client, auth.contaId, CUSTO_DEVER);
       if (saldo === null) return { status: 402 };
 
       const { plano } = await gerarPlanoSeguro(conteudoCompleto, imagens);

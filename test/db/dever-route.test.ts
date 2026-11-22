@@ -72,22 +72,23 @@ test('sem conteúdo responde 400', async () => {
   expect(res.status).toBe(400);
 });
 
-test('com saldo cria o dever, os slides e debita 1', async () => {
+test('com saldo cria o dever, os slides e debita meia revisão', async () => {
   const conta = await createConta('Ana', 'S', 'd2@example.com', 'hash', 3);
   const res = await criarDever(post(conta.id, 'chave-1'));
   expect(res.status).toBe(200);
   const { id } = await res.json();
 
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
-  expect(rows[0].saldo_revisoes).toBe(2);
+  expect(rows[0].saldo_revisoes).toBe(2.5);
+
+  const mov = await pool.query('SELECT quantidade, dever_id FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
+  expect(mov.rows[0].quantidade).toBe(-0.5);
+  expect(mov.rows[0].dever_id).toBe(id);
 
   const slides = await pool.query('SELECT ordem, titulo, explicacao FROM dever_slides WHERE dever_id = $1 ORDER BY ordem', [id]);
   expect(slides.rows).toHaveLength(2);
   expect(slides.rows[0].titulo).toBe('Primeiro');
   expect(slides.rows[0].explicacao).toBe('a');
-
-  const mov = await pool.query('SELECT dever_id FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
-  expect(mov.rows[0].dever_id).toBe(id);
 });
 
 test('saldo esgotado responde 402 e não cria dever', async () => {
@@ -96,6 +97,15 @@ test('saldo esgotado responde 402 e não cria dever', async () => {
   expect(res.status).toBe(402);
   const { rows } = await pool.query('SELECT count(*)::int AS c FROM deveres WHERE conta_id = $1', [conta.id]);
   expect(rows[0].c).toBe(0);
+});
+
+// Meio crédito: com 0,5 de saldo o dever ainda passa (uma revisão não passaria).
+test('saldo 0,5 ainda cria o dever', async () => {
+  const conta = await createConta('Ana', 'S', 'd-meia@example.com', 'hash', 0.5);
+  const res = await criarDever(post(conta.id, 'chave-meia'));
+  expect(res.status).toBe(200);
+  const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
+  expect(rows[0].saldo_revisoes).toBe(0);
 });
 
 test('LLM falha: nada debitado, nada persistido', async () => {
@@ -119,7 +129,7 @@ test('reenvio com a mesma chave devolve o mesmo dever sem debitar de novo', asyn
   expect(corpo.duplicate).toBe(true);
 
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
-  expect(rows[0].saldo_revisoes).toBe(2);
+  expect(rows[0].saldo_revisoes).toBe(2.5);
   expect(gerarPlanoSeguro).toHaveBeenCalledTimes(1);
 });
 
@@ -129,7 +139,7 @@ test('corrida com a mesma chave debita exatamente uma vez', async () => {
   expect(r1.status).toBe(200);
   expect(r2.status).toBe(200);
   const { rows } = await pool.query('SELECT saldo_revisoes FROM contas WHERE id = $1', [conta.id]);
-  expect(rows[0].saldo_revisoes).toBe(2);
+  expect(rows[0].saldo_revisoes).toBe(2.5);
   const mov = await pool.query('SELECT count(*)::int AS c FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
   expect(mov.rows[0].c).toBe(1);
 });

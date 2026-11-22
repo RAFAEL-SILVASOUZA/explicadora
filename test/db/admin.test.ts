@@ -128,7 +128,7 @@ test('revogação pelo admin estorna o que sobra e mostra o quanto foi usado', a
   await comTransacao((c) => consumirSaldo(c, aluna.id));
   const res = await revogar(...chamada(admin.id, 'admin', tokens[0].id, 'POST'));
   expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ ok: true, usados: 1, estornado: 19, novoSaldo: 0 });
+  expect(await res.json()).toEqual({ ok: true, usados: 1, estornado: 4, novoSaldo: 0 });
   const lista = await (await listar(req(admin.id, 'admin'))).json();
   expect(lista[0].status).toBe('revogado');
   expect(lista[0].usados).toBe(1);

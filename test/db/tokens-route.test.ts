@@ -32,7 +32,7 @@ test('resgate soma as revisões e responde 200', async () => {
   const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const res = await resgate(post('http://localhost/api/tokens/resgate', conta.id, { codigo: token.codigo }));
   expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ plano: 'pro', revisoes: 20, novoSaldo: 23 });
+  expect(await res.json()).toEqual({ plano: 'pro', revisoes: 5, novoSaldo: 8 });
 });
 
 test('resgate sem token responde 401', async () => {
@@ -68,7 +68,7 @@ test('resgate expirado responde 410', async () => {
 test('GET /api/conta mostra o plano do último resgate', async () => {
   const admin = await createConta('Admin', 'Estudo', 'admin@example.com', 'hash', 0);
   const [t1] = await gerarLote(admin.id, 'pro', 1, new Date(Date.now() + 30 * 86400000));
-  const [t2] = await gerarLote(admin.id, 'familia', 1, new Date(Date.now() + 30 * 86400000));
+  const [t2] = await gerarLote(admin.id, 'max', 1, new Date(Date.now() + 30 * 86400000));
   // `aluna` em vez de `conta`: `conta` é a rota importada, que este teste chama.
   const aluna = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   // O movimento de registro é escrito pela rota de registro, não por createConta.
@@ -78,8 +78,8 @@ test('GET /api/conta mostra o plano do último resgate', async () => {
   await resgate(post('http://localhost/api/tokens/resgate', aluna.id, { codigo: t2.codigo }));
   const res = await conta(get('http://localhost/api/conta', aluna.id));
   const data = await res.json();
-  expect(data.plano).toBe('familia');
-  expect(data.saldo).toBe(73);
+  expect(data.plano).toBe('max');
+  expect(data.saldo).toBe(23);
   expect(data.movimentos).toHaveLength(3);
 });
 

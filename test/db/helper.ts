@@ -10,11 +10,11 @@ export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // não dados de teste.
 const TABELAS = ['contas', 'planos', 'lotes', 'tokens', 'revisoes', 'questoes', 'respostas', 'movimentos_saldo', 'deveres', 'dever_slides', 'arquivos'];
 
-// Os três planos do negócio, os mesmos valores de migrations/001_initial.sql.
+// Os três planos do negócio (mesmo resultado de 001 + 009).
 const PLANOS: Array<[string, string, number, number]> = [
-  ['free', 'Free', 3, 0],
-  ['pro', 'Pro', 20, 500],
-  ['familia', 'Família', 50, 1500],
+  ['free', 'Free', 2, 0],
+  ['pro', 'Pro', 5, 500],
+  ['max', 'Max', 15, 1000],
 ];
 
 export async function semearPlanos(): Promise<void> {

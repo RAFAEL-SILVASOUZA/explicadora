@@ -11,6 +11,7 @@ import { SkeletonTexto } from '@/components/Skeleton';
 import PlanosCard from '@/components/PlanosCard';
 import ResgateTokenCard from '@/components/ResgateTokenCard';
 import { apiFetch, lerToken } from '@/lib/client/api';
+import { formatarRevisoes } from '@/lib/client/saldo';
 import { Plano } from '@/lib/types';
 
 interface Movimento {
@@ -97,7 +98,7 @@ export default function Creditos() {
               </div>
               <div className="rounded-2xl bg-success-light p-4 flex-1 min-w-[12rem]">
                 <p className="text-sm font-semibold text-ink/60">Saldo</p>
-                <p className="text-2xl font-extrabold text-success-ink">{dados.saldo} revisões</p>
+                <p className="text-2xl font-extrabold text-success-ink">{formatarRevisoes(dados.saldo)} revisões</p>
               </div>
             </div>
           ) : estado === 'erro' ? (
@@ -149,7 +150,7 @@ export default function Creditos() {
                     <tr key={i} className="border-t border-ink/10">
                       <td className="py-2">{rotuloDoMovimento(m)}</td>
                       <td className={`py-2 font-bold ${m.quantidade > 0 ? 'text-success-ink' : 'text-danger-ink'}`}>
-                        {m.quantidade > 0 ? `+${m.quantidade}` : m.quantidade}
+                        {m.quantidade > 0 ? `+${formatarRevisoes(m.quantidade)}` : formatarRevisoes(m.quantidade)}
                       </td>
                       <td className="py-2">{m.plano_codigo ?? '-'}</td>
                       <td className="py-2">{new Date(m.criado_em).toLocaleString('pt-BR')}</td>
