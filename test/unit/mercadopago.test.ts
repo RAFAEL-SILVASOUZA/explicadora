@@ -10,7 +10,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('criarOrder envia payload correto para a API de Orders do MP', async () => {
+test('criarOrder envia payload correto com processing_mode manual e X-Idempotency-Key', async () => {
   let urlChamada = '';
   let optionsChamada: RequestInit | undefined;
 
@@ -32,6 +32,7 @@ test('criarOrder envia payload correto para a API de Orders do MP', async () => 
   const res = await criarOrder({
     plano: { codigo: 'pro', nome: 'Pro', revisoes: 20, preco_cents: 1500 },
     pedidoId: 'pedido-uuid-abc',
+    compradorEmail: 'aluno@escola.com',
   });
 
   expect(urlChamada).toBe('https://api.mercadopago.com/v1/orders');
@@ -40,18 +41,21 @@ test('criarOrder envia payload correto para a API de Orders do MP', async () => 
   const headers = optionsChamada?.headers as Record<string, string>;
   expect(headers['Authorization']).toBe('Bearer TEST-fake-token-12345');
   expect(headers['Content-Type']).toBe('application/json');
+  expect(headers['X-Idempotency-Key']).toBe('pedido-uuid-abc');
 
   const body = JSON.parse(String(optionsChamada?.body));
   expect(body.type).toBe('online');
+  expect(body.processing_mode).toBe('manual');
+  expect(body.total_amount).toBe('15.00');
   expect(body.external_reference).toBe('pedido-uuid-abc');
+  expect(body.payer.email).toBe('aluno@escola.com');
   expect(body.items[0]).toEqual({
     title: 'Plano Pro — 20 revisões',
     quantity: 1,
-    unit_price: 15,
-    currency_id: 'BRL',
+    unit_price: '15.00',
   });
-  expect(body.back_urls.success).toBe('https://app.test/creditos?status=approved');
-  expect(body.notification_url).toBe('https://app.test/api/pagamentos/webhook');
+  expect(body.config.online.success_url).toBe('https://app.test/creditos?status=approved');
+  expect(body.config.online.auto_return).toBe('approved');
 
   expect(res.id).toBe('order-123');
   expect(res.checkout_url).toBe('https://mercadopago.com/checkout/order-123');

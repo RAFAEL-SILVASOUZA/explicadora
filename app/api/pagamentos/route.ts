@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { autenticar, naoAutorizado } from '@/lib/auth/guard';
+import { findContaById } from '@/lib/repos/contas';
 import { listarPlanos } from '@/lib/repos/planos';
 import { criarPedido } from '@/lib/repos/pedidos';
 import { criarOrder } from '@/lib/mercadopago';
@@ -27,12 +28,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Plano gratuito não exige pagamento' }, { status: 422 });
   }
 
+  const conta = await findContaById(auth.contaId);
   const pedidoId = randomUUID();
 
   // 1. Cria a order no Mercado Pago (fora da transação — operação externa)
   let order: Awaited<ReturnType<typeof criarOrder>>;
   try {
-    order = await criarOrder({ plano, pedidoId });
+    order = await criarOrder({
+      plano,
+      pedidoId,
+      compradorEmail: conta?.email,
+    });
   } catch (err) {
     console.error('[pagamentos] erro ao criar order no MP:', err);
     return NextResponse.json({ error: 'Falha ao iniciar pagamento. Tente novamente.' }, { status: 502 });
