@@ -1,6 +1,6 @@
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open('estudo-divertido-cache').then((cache) => {
+    caches.open('explicadora-cache').then((cache) => {
       return cache.addAll([
         '/',
         '/offline',

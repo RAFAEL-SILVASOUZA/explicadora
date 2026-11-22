@@ -7,7 +7,6 @@ import { Home, BookOpen, User, LogOut, ShieldCheck, CircleDollarSign, Backpack, 
 import { usePathname } from 'next/navigation';
 import { apiFetch, lerToken, limparToken } from '@/lib/client/api';
 import { assinarSaldo, formatarRevisoes } from '@/lib/client/saldo';
-import Mascote from './Mascote';
 import { SkeletonBloco } from './Skeleton';
 
 interface Sessao {
@@ -115,12 +114,10 @@ export default function Header() {
     <>
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-primary/15">
       <div className="shell py-3 flex items-center gap-3">
-        {/* Logado, o slot da marca mostra o nome da pessoa; sem sessão, o nome do app. */}
-        <Link href="/" className="flex items-center gap-2 font-extrabold text-primary text-lg min-w-0">
-          <Mascote humor="feliz" className="w-8 h-8 shrink-0" decorative />
-          <span className="truncate">
-            {sessao ? [sessao.nome, sessao.sobrenome].filter(Boolean).join(' ') : 'Estudo Divertido'}
-          </span>
+        {/* Só o ícone da marca: o texto foi removido no rebrand. */}
+        <Link href="/" className="flex items-center gap-2 min-w-0" aria-label="EXPLICADORA — Página inicial">
+          {/* eslint-disable-next-line @next/next/no-img-element -- ícone local do app (SVG sem next/image) */}
+          <img src="/logo-icon.svg" alt="Estudo Divertido" width={32} height={32} className="w-8 h-8 shrink-0" />
         </Link>
 
         <button

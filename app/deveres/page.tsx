@@ -51,7 +51,7 @@ export default function Deveres() {
             </div>
             <p className="text-xl font-extrabold text-ink mb-2">Nenhum dever por aqui ainda.</p>
             <p className="text-ink/70 mb-5">
-              Fotografe o caderno da criança e a Lia explica o dever em slides curtos.
+              Fotografe o caderno da criança e a Explicadora explica o dever em slides curtos.
             </p>
             <NovoDeverBotao />
           </div>

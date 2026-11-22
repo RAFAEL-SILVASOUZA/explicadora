@@ -6,7 +6,7 @@ export default function LoadingQuestoes() {
       <div className="mb-6 animate-float">
         <Mascote humor="pensando" className="w-24 h-24" decorative />
       </div>
-      <h2 className="text-2xl font-extrabold text-ink mb-2">A Lia está preparando as questões...</h2>
+      <h2 className="text-2xl font-extrabold text-ink mb-2">A Explicadora está preparando as questões...</h2>
       <p className="text-lg text-ink/60">Isso pode levar alguns segundos</p>
       <div className="mt-6 flex gap-2" aria-hidden="true">
         <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />

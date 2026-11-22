@@ -101,7 +101,7 @@ export default function RevisaoDetalhe({ params }: { params: { id: string } }) {
               {dados.resultado?.veredito ? (
                 <div className="rounded-2xl bg-primary-light/50 p-4">
                   <p className="font-bold text-ink mb-2 flex items-center gap-2">
-                    <MessageSquare size={20} aria-hidden="true" /> O que a Lia diz
+                    <MessageSquare size={20} aria-hidden="true" /> O que a Explicadora diz
                   </p>
                   <p className="text-ink/80">{dados.resultado.veredito}</p>
                 </div>

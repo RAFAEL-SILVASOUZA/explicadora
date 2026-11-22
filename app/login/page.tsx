@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LogIn } from 'lucide-react';
 import { guardarToken } from '@/lib/client/api';
-import Mascote from '@/components/Mascote';
 
 export default function Login() {
   const router = useRouter();
@@ -47,7 +46,8 @@ export default function Login() {
     <main className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-4">
-          <Mascote humor="feliz" className="w-20 h-20 animate-float" decorative />
+          {/* eslint-disable-next-line @next/next/no-img-element -- ícone da marca (SVG local) */}
+          <img src="/logo-icon.svg" alt="Estudo Divertido" width={80} height={80} className="w-20 h-20 animate-float" />
         </div>
         <form onSubmit={entrar} className="card space-y-4" noValidate>
           <h1 className="text-2xl font-extrabold text-primary">Entrar</h1>

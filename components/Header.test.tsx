@@ -12,20 +12,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('mostra o nome do usuário logado no lugar de "Estudo Divertido"', async () => {
+test('mostra só o ícone da marca, sem texto, mesmo logado', async () => {
   localStorage.setItem('estudo_token', 'token-de-teste');
   vi.stubGlobal('fetch', async () => ({
     ok: true,
     json: async () => ({ conta: { id: '1', role: 'user', saldo_revisoes: 3, nome: 'Ana', sobrenome: 'Souza' } }),
   }) as Response);
   render(<Header />);
-  await waitFor(() => expect(screen.getByText('Ana Souza')).toBeTruthy());
-  expect(screen.queryByText('Estudo Divertido')).toBeNull();
+  await waitFor(() => expect(screen.getByRole('link', { name: 'EXPLICADORA — Página inicial' })).toBeTruthy());
+  // Só o ícone: sem o nome da pessoa nem o texto da marca no header.
+  expect(screen.queryByText('Ana Souza')).toBeNull();
+  expect(screen.queryByText('EXPLICADORA')).toBeNull();
 });
 
-test('mostra "Estudo Divertido" quando não há sessão', async () => {
+test('mostra só o ícone da marca quando não há sessão', async () => {
   render(<Header />);
-  expect(screen.getByText('Estudo Divertido')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'EXPLICADORA — Página inicial' })).toBeTruthy();
+  expect(screen.queryByText('EXPLICADORA')).toBeNull();
 });
 
 // A gaveta fica num invólucro aria-hidden quando fechada (não cria rolagem horizontal),

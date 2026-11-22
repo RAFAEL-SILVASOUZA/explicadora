@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen, History, KeyRound } from 'lucide-react';
+import { History, KeyRound } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
 import { lerToken } from '@/lib/client/api';
@@ -19,11 +19,11 @@ export default function Home() {
     <>
       <Header />
       <main className="shell py-8 space-y-8">
-        <section className="text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-primary mb-3">
-            <BookOpen size={32} className="inline mr-2" aria-hidden="true" /> Estudo Divertido
+        <section className="text-center py-2">
+          <h1 className="flex justify-center mb-3">
+            {/* eslint-disable-next-line @next/next/no-img-element -- ícone da marca (SVG local) */}
+            <img src="/logo-icon.svg" alt="Estudo Divertido" className="h-28 sm:h-32 w-auto drop-shadow-sm" />
           </h1>
-          <p className="text-lg text-ink/70">Aprenda brincando com a Lia!</p>
         </section>
 
         {/* A ação principal da home é estudar, então ela vem antes dos créditos: o olho da

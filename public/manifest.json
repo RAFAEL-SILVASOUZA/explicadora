@@ -1,11 +1,11 @@
 {
-  "name": "Estudo Divertido",
-  "short_name": "EstudoDiv",
-  "description": "Sistema de estudo com LLM para crianças",
+  "name": "EXPLICADORA",
+  "short_name": "Explicadora",
+  "description": "Estudo com inteligência artificial para até a 8ª série",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FDF6EC",
-  "theme_color": "#7C5CFC",
+  "theme_color": "#4F46E5",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

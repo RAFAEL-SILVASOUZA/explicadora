@@ -135,7 +135,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
 
         <div className={`card mb-6 ${preparado ? 'border-2 border-success/40' : 'border-2 border-secondary/40'}`}>
           <h2 className="text-2xl font-extrabold mb-4 flex items-center gap-2">
-            <MessageSquare size={24} aria-hidden="true" /> O que a Lia diz
+            <MessageSquare size={24} aria-hidden="true" /> O que a Explicadora diz
           </h2>
           <p className="text-xl text-ink/80">{resultado.veredito}</p>
         </div>

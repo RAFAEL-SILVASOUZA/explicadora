@@ -10,10 +10,13 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: 'Estudo Divertido',
-  description: 'Sistema de estudo com LLM para crianças',
+  title: 'EXPLICADORA — Até a 8ª Série',
+  description: 'Estudo com inteligência artificial para até a 8ª série',
   manifest: '/manifest.json',
-  icons: [{ rel: 'icon', url: '/favicon.png', type: 'image/png' }],
+  icons: [
+    { rel: 'icon', url: '/favicon.svg', type: 'image/svg+xml' },
+    { rel: 'icon', url: '/favicon.png', type: 'image/png' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

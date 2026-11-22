@@ -137,7 +137,7 @@ test('mostra o aviso de saldo esgotado (402) em vez do spinner após o envio', a
   await user.click(screen.getByRole('button', { name: /Gerar Questões/ }));
   const alerta = await screen.findByRole('alert');
   expect(alerta.textContent).toBe(mensagem);
-  expect(screen.queryByText('A Lia está preparando as questões...')).toBeNull();
+  expect(screen.queryByText('A Explicadora está preparando as questões...')).toBeNull();
 });
 
 test('remove espaços das bordas do texto sem alterar espaços internos ao enviar', async () => {

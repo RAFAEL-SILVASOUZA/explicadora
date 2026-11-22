@@ -10,7 +10,7 @@ export async function semearAdmin(pool?: Pool): Promise<boolean> {
   const senha = process.env.ADMIN_SENHA;
   if (!email || !senha) return false;
   const nome = (process.env.ADMIN_NOME ?? 'Admin').trim();
-  const sobrenome = (process.env.ADMIN_SOBRENOME ?? 'Estudo Divertido').trim();
+  const sobrenome = (process.env.ADMIN_SOBRENOME ?? 'Explicadora').trim();
   const p = pool ?? getPool();
   const { rowCount } = await p.query(
     `INSERT INTO contas (nome, sobrenome, email, senha_hash, role, saldo_revisoes)

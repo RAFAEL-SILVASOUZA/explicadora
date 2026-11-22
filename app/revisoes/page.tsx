@@ -50,7 +50,7 @@ export default function Revisoes() {
               <Mascote humor="feliz" className="w-20 h-20 animate-float" decorative />
             </div>
             <p className="text-xl font-extrabold text-ink mb-2">Você ainda não tem revisões.</p>
-            <p className="text-ink/70 mb-5">Escolha um assunto e a Lia cria as perguntas para você.</p>
+            <p className="text-ink/70 mb-5">Escolha um assunto e a Explicadora cria as perguntas para você.</p>
             <NovaRevisaoBotao />
           </div>
         ) : (

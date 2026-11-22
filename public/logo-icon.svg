@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="55 60 380 400" width="100%" height="100%">
+  <defs>
+    <filter id="drop-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-opacity="0.15" />
+    </filter>
+    <linearGradient id="primary-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#1E1B4B" />
+    </linearGradient>
+    <linearGradient id="screen-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#1E293B" />
+    </linearGradient>
+    <linearGradient id="tablet-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#818CF8" />
+      <stop offset="100%" stop-color="#C084FC" />
+    </linearGradient>
+  </defs>
+  <g id="mascot-group" filter="url(#drop-shadow)">
+    <ellipse cx="250" cy="440" rx="120" ry="14" fill="#E2E8F0" />
+    <rect x="110" y="160" width="280" height="230" rx="28" fill="url(#tablet-bg)" transform="rotate(-6 250 275)" />
+    <rect x="125" y="175" width="250" height="200" rx="20" fill="#FFFFFF" opacity="0.2" transform="rotate(-6 250 275)" />
+    <g fill="#FFFFFF" opacity="0.9" stroke="#38BDF8" stroke-width="1.5">
+      <text x="290" y="230" font-family="system-ui, sans-serif" font-weight="800" font-size="28" fill="#F43F5E">A</text>
+      <text x="325" y="250" font-family="system-ui, sans-serif" font-weight="800" font-size="28" fill="#10B981">B</text>
+      <text x="300" y="285" font-family="system-ui, sans-serif" font-weight="800" font-size="28" fill="#F59E0B">C</text>
+      <path d="M330 310 l4 8 9 1 -6 6 2 9 -9 -4 -8 4 2 -9 -6 -6 9 -1 z" fill="#FBBF24" stroke="none" />
+    </g>
+    <g transform="translate(60, 130)">
+      <circle cx="20" cy="20" r="18" fill="#0EA5E9" />
+      <path d="M20 8 L20 32 M8 20 L32 20 M11 11 L29 29 M11 29 L29 11" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+      <circle cx="20" cy="20" r="12" fill="#0EA5E9" />
+      <text x="20" y="24" font-family="system-ui, sans-serif" font-weight="800" font-size="11" fill="#FFFFFF" text-anchor="middle">IA</text>
+    </g>
+    <g fill="#F43F5E" font-family="system-ui, sans-serif" font-weight="800" font-size="22">
+      <text x="65" y="200">+</text>
+      <text x="100" y="215">-</text>
+      <text x="80" y="245">×</text>
+      <text x="110" y="260">÷</text>
+    </g>
+    <g transform="translate(60, 260) rotate(-15)">
+      <rect x="0" y="0" width="35" height="26" rx="4" fill="#F97316" />
+      <path d="M17 0 L17 26" stroke="#FFFFFF" stroke-width="2" />
+      <path d="M4 6 L13 6 M4 12 L13 12 M21 6 L30 6" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" />
+    </g>
+    <g transform="translate(390, 100)">
+      <path d="M20 35 C10 35 5 25 5 18 C5 8 12 0 22 0 C32 0 39 8 39 18 C39 25 34 35 24 35 Z" fill="#FBBF24" />
+      <rect x="15" y="35" width="14" height="6" rx="2" fill="#94A3B8" />
+      <path d="M12 8 L8 3 M22 5 L22 0 M32 8 L36 3" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
+    </g>
+    <rect x="180" y="270" width="140" height="120" rx="45" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="4" />
+    <rect x="200" y="285" width="100" height="85" rx="35" fill="url(#primary-grad)" />
+    <circle cx="250" cy="328" r="14" fill="#06B6D4" />
+    <circle cx="250" cy="328" r="7" fill="#FFFFFF" />
+    <ellipse cx="155" cy="330" rx="14" ry="30" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" transform="rotate(20 155 330)" />
+    <ellipse cx="345" cy="330" rx="14" ry="30" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3" transform="rotate(-20 345 330)" />
+    <circle cx="148" cy="355" r="12" fill="#334155" />
+    <circle cx="352" cy="355" r="12" fill="#334155" />
+    <rect x="145" y="175" width="20" height="45" rx="8" fill="#0EA5E9" />
+    <rect x="335" y="175" width="20" height="45" rx="8" fill="#0EA5E9" />
+    <rect x="155" y="120" width="190" height="155" rx="60" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="4" />
+    <rect x="175" y="140" width="150" height="110" rx="45" fill="url(#screen-grad)" />
+    <g fill="#38BDF8">
+      <ellipse cx="215" cy="188" rx="18" ry="22" />
+      <ellipse cx="285" cy="188" rx="18" ry="22" />
+      <circle cx="210" cy="180" r="6" fill="#FFFFFF" />
+      <circle cx="280" cy="180" r="6" fill="#FFFFFF" />
+      <circle cx="220" cy="195" r="3" fill="#FFFFFF" />
+      <circle cx="290" cy="195" r="3" fill="#FFFFFF" />
+    </g>
+    <path d="M235 215 Q250 228 265 215" stroke="#38BDF8" stroke-width="4" stroke-linecap="round" fill="none" />
+    <ellipse cx="198" cy="202" rx="8" ry="5" fill="#F43F5E" opacity="0.6" />
+    <ellipse cx="302" cy="202" rx="8" ry="5" fill="#F43F5E" opacity="0.6" />
+    <g id="academic-cap">
+      <path d="M205 122 C205 110 295 110 295 122 L285 132 C285 132 215 132 205 122 Z" fill="#1E1B4B" />
+      <polygon points="250,70 340,105 250,130 160,105" fill="#312E81" />
+      <polygon points="250,70 340,105 250,112 160,105" fill="#4338CA" />
+      <circle cx="250" cy="100" r="6" fill="#F59E0B" />
+      <path d="M250 100 Q275 110 278 135" stroke="#F59E0B" stroke-width="4" fill="none" />
+      <rect x="273" y="135" width="10" height="14" rx="2" fill="#FBBF24" />
+    </g>
+  </g>
+</svg>
