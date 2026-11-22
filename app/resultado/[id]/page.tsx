@@ -43,7 +43,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <LoadingQuestoes />
         </main>
       </>
@@ -54,7 +54,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <div className="card text-center border-2 border-danger/40">
             <p className="text-2xl font-extrabold text-danger-ink mb-4">
               <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro || 'Erro ao carregar resultado'}
@@ -104,7 +104,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <LoadingQuestoes />
         </main>
       </>
@@ -114,7 +114,7 @@ export default function ResultadoPage({ params }: { params: { id: string } }) {
   return (
     <>
       <Header />
-      <main className="max-w-2xl mx-auto px-4 py-8 text-center">
+      <main className="shell py-8 text-center">
         {cemPorCento && <Confetti />}
         <div className="flex justify-center mb-6">
           <Mascote humor="celebrando" className="w-24 h-24 animate-wiggle" decorative />

@@ -94,7 +94,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-primary/15">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div className="shell py-3 flex items-center gap-3">
         {/* Logado, o slot da marca mostra o nome da pessoa; sem sessão, o nome do app. */}
         <Link href="/" className="flex items-center gap-2 font-extrabold text-primary text-lg min-w-0">
           <Mascote humor="feliz" className="w-8 h-8 shrink-0" decorative />
@@ -115,24 +115,30 @@ export default function Header() {
         </button>
       </div>
 
-      {/* Gaveta lateral: fecha ao tocar no véu, no Esc ou ao navegar. */}
-      {menuAberto && (
-        <button
-          type="button"
-          onClick={() => setMenuAberto(false)}
-          aria-label="Fechar menu"
-          tabIndex={-1}
-          className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm"
-        />
-      )}
-
+      {/* Gaveta lateral: o invólucro recortado (e sem ponteiro quando fechada) evita que o
+          painel traduzido para fora da tela crie rolagem horizontal no documento.
+          Fecha ao tocar no véu, no Esc ou ao navegar. */}
       <div
-        id="menu-lateral"
-        aria-label="Menu"
-        className={`fixed top-0 right-0 z-50 h-dvh w-[min(20rem,85vw)] bg-white shadow-card flex flex-col transition-transform duration-200 motion-reduce:transition-none ${
-          menuAberto ? 'translate-x-0' : 'translate-x-full invisible'
-        }`}
+        aria-hidden={!menuAberto}
+        className={`fixed inset-0 z-50 overflow-hidden ${menuAberto ? '' : 'invisible pointer-events-none'}`}
       >
+        {menuAberto && (
+          <button
+            type="button"
+            onClick={() => setMenuAberto(false)}
+            aria-label="Fechar menu"
+            tabIndex={-1}
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+          />
+        )}
+
+        <div
+          id="menu-lateral"
+          aria-label="Menu"
+          className={`absolute top-0 right-0 h-dvh w-[min(20rem,85vw)] bg-white shadow-card flex flex-col transition-transform duration-200 motion-reduce:transition-none ${
+            menuAberto ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-primary/15">
           <span className="font-extrabold text-primary text-lg">Menu</span>
           <button
@@ -175,6 +181,7 @@ export default function Header() {
             </button>
           </div>
         )}
+        </div>
       </div>
     </header>
   );

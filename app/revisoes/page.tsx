@@ -34,7 +34,7 @@ export default function Revisoes() {
   return (
     <>
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <main className="shell py-8 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-primary flex items-center gap-2">
             <History size={28} aria-hidden="true" /> Área de revisões

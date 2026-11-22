@@ -10,7 +10,7 @@ export function tituloDoDever(d: { titulo: string | null; conteudo_texto: string
 
 export default function DeverGrid({ deveres }: { deveres: ResumoDever[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {deveres.map((d) => (
         <Link key={d.id} href={`/deveres/${d.id}`}
           className="card block hover:shadow-card-hover transition-shadow">

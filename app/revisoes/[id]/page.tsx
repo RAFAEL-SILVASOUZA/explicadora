@@ -45,7 +45,7 @@ export default function RevisaoDetalhe({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <div className="card"><p className="text-2xl font-extrabold text-ink">Carregando...</p></div>
         </main>
       </>
@@ -56,7 +56,7 @@ export default function RevisaoDetalhe({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <div className="card text-center border-2 border-danger/40">
             <p className="text-2xl font-extrabold text-danger mb-4">
               <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro || 'Erro ao carregar a revisão'}
@@ -77,7 +77,7 @@ export default function RevisaoDetalhe({ params }: { params: { id: string } }) {
   return (
     <>
       <Header />
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <main className="shell py-8 space-y-6">
         <section className="card">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-primary mb-2">
             {tituloDaRevisao(dados.revisao)}

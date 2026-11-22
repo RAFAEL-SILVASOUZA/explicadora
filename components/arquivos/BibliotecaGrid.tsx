@@ -44,7 +44,7 @@ export default function BibliotecaGrid({
   };
 
   return (
-    <ul className="grid gap-3 sm:grid-cols-2" aria-label="Seus arquivos">
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" aria-label="Seus arquivos">
       {arquivos.map((arquivo) => {
         const { extensao } = dividirNomeExibicao(arquivo.nome);
         const editando = editandoId === arquivo.id;

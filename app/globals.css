@@ -31,6 +31,12 @@ body {
   .chip {
     @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-light text-primary-dark font-extrabold shrink-0;
   }
+  /* Área útil de todas as páginas: ocupa a janela inteira (sem teto de largura) e só
+     ajusta o respiro lateral conforme a tela. Em telas muito largas o conteúdo de texto
+     continua legível porque os próprios blocos (card, enunciado) controlam o ritmo. */
+  .shell {
+    @apply w-full mx-auto px-4 sm:px-6 xl:px-10;
+  }
   .nav-link {
     @apply inline-flex items-center gap-1 px-3 py-2 rounded-xl font-semibold text-ink/70 hover:bg-primary-light hover:text-primary-dark transition-colors;
   }

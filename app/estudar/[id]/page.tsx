@@ -78,7 +78,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
         <Header />
         {/* Sem barra aqui: antes das questões chegarem ela diria "Questão 1 de 1 · 100%",
             um progresso que ainda não existe. O mascote pensando já comunica a espera. */}
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <LoadingQuestoes />
         </main>
       </>
@@ -89,7 +89,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <div className="card text-center border-2 border-danger/40">
             <p className="text-2xl font-extrabold text-danger-ink mb-4">
               <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro}
@@ -106,7 +106,7 @@ export default function EstudarPage({ params }: { params: { id: string } }) {
   return (
     <>
       <Header />
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <main className="shell py-8">
         <ProgressoBarra atual={indiceAtual + 1} total={questoes.length} />
         {feedback ? (
           <FeedbackResposta

@@ -30,7 +30,7 @@ export default function Conta() {
   return (
     <>
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <main className="shell py-8 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-primary">Minha conta</h1>
 
         {/* Conta é só o cadastro. Saldo, planos, resgate e extrato têm uma área só: /creditos. */}

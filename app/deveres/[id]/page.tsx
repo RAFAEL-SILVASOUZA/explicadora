@@ -154,7 +154,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-3xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <div className="card"><p className="text-2xl font-extrabold text-ink">Carregando o dever...</p></div>
         </main>
       </>
@@ -165,7 +165,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
     return (
       <>
         <Header />
-        <main className="max-w-2xl mx-auto px-4 py-8">
+        <main className="shell py-8">
           <div className="card text-center border-2 border-danger/40">
             <p className="text-2xl font-extrabold text-danger mb-4">
               <Frown size={32} className="inline mr-2" aria-hidden="true" /> {erro || 'Dever não encontrado'}
@@ -184,7 +184,7 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
       <Header />
       {/* Tela da criança: mais larga que as páginas do pai porque o canvas é o
           conteúdo principal (desktop-first; no celular ele ocupa a largura toda). */}
-      <main className="max-w-5xl mx-auto px-4 py-3 sm:py-4 space-y-2 sm:space-y-3">
+      <main className="shell py-3 sm:py-4 space-y-2 sm:space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <Mascote humor="feliz" className="w-10 h-10 shrink-0" decorative />
           <div className="min-w-0 flex-1">

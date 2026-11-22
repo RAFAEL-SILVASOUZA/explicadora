@@ -18,7 +18,7 @@ export default function Home() {
   return (
     <>
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <main className="shell py-8 space-y-8">
         <section className="text-center">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-primary mb-3">
             <BookOpen size={32} className="inline mr-2" aria-hidden="true" /> Estudo Divertido

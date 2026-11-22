@@ -17,7 +17,7 @@ export function tituloDaRevisao(r: { titulo: string | null; conteudo_texto: stri
 
 export default function RevisaoGrid({ revisoes }: { revisoes: ResumoRevisao[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {revisoes.map((r) => {
         const status = statusDaRevisao(r);
         return (
