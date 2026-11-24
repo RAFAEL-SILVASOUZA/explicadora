@@ -120,6 +120,12 @@ export default function Header() {
           <img src="/logo-icon.svg" alt="Estudo Divertido" width={40} height={40} className="w-10 h-10 sm:w-8 sm:h-8 shrink-0" />
         </Link>
 
+        {sessao && (
+          <span className="min-w-0 truncate text-sm sm:text-base font-bold text-ink/80">
+            Olá, {sessao.nome}!
+          </span>
+        )}
+
         <button
           type="button"
           onClick={() => setMenuAberto((aberto) => !aberto)}
