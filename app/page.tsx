@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { History, KeyRound } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
+import ProgressoHome from '@/components/ProgressoHome';
 import { lerToken } from '@/lib/client/api';
 
 export default function Home() {
@@ -19,12 +20,13 @@ export default function Home() {
     <>
       <Header />
       <main className="shell py-8 space-y-8">
-        <section className="text-center py-2">
-          <h1 className="flex justify-center mb-3">
-            {/* eslint-disable-next-line @next/next/no-img-element -- ícone da marca (SVG local) */}
-            <img src="/logo-icon.svg" alt="Estudo Divertido" className="h-28 sm:h-32 w-auto drop-shadow-sm" />
-          </h1>
-        </section>
+        {/* H1 de marca fora da tela: o hero (e o h1 visual) foi removido; o header já traz
+            o ícone, este mantém a hierarquia de títulos. */}
+        <h1 className="sr-only">EXPLICADORA</h1>
+
+        {/* O placar vem no topo da tela: responde "onde estou?" de relance antes da
+            ação principal. As métricas ficam antes dos cartões de ação de propósito. */}
+        <ProgressoHome />
 
         {/* A ação principal da home é estudar, então ela vem antes dos créditos: o olho da
             criança cai aqui primeiro, e o pacote é consequência, não o caminho. */}

@@ -25,6 +25,19 @@ export function SkeletonCard({ className = '' }: { className?: string }) {
   );
 }
 
+// Silhueta do cartão de métrica da home (mesmo formato do StatCard: chip, número,
+// rótulo, linha). Mantém o layout no lugar enquanto os números carregam.
+export function SkeletonStatCard({ className = '' }: { className?: string }) {
+  return (
+    <div aria-hidden="true" className={`card ${className}`}>
+      <SkeletonBloco className="w-12 h-12 rounded-2xl mb-4" />
+      <SkeletonBloco className="h-9 w-20 mb-2" />
+      <SkeletonBloco className="h-5 w-2/3 mb-2" />
+      <SkeletonBloco className="h-4 w-3/4" />
+    </div>
+  );
+}
+
 /** Grade de silhuetas com o mesmo comportamento responsivo das grades do app. */
 export function SkeletonGrade({ quantidade = 6, className = '' }: { quantidade?: number; className?: string }) {
   return (

@@ -117,7 +117,7 @@ export default function Header() {
         {/* Só o ícone da marca: o texto foi removido no rebrand. */}
         <Link href="/" className="flex items-center gap-2 min-w-0" aria-label="EXPLICADORA — Página inicial">
           {/* eslint-disable-next-line @next/next/no-img-element -- ícone local do app (SVG sem next/image) */}
-          <img src="/logo-icon.svg" alt="Estudo Divertido" width={40} height={40} className="w-10 h-10 sm:w-8 sm:h-8 shrink-0" />
+          <img src="/logo-icon.svg" alt="Estudo Divertido" width={48} height={48} className="w-12 h-12 sm:w-11 sm:h-11 shrink-0" />
         </Link>
 
         {sessao && (

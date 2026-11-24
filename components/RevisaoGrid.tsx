@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { ResumoRevisao } from '@/lib/types';
+import { revisaoFinalizada } from '@/lib/resumo';
 
+// A regra de "finalizada" vem do mesmo lugar do placar da home: uma única definição
+// para não divergir entre telas.
 function statusDaRevisao(r: ResumoRevisao): { texto: string; classe: string } {
   if (r.total_questoes === 0) return { texto: 'Vazia', classe: 'bg-primary-light text-primary-dark' };
   if (r.total_respostas === 0) return { texto: 'Não iniciada', classe: 'bg-secondary-light text-secondary-ink' };
-  if (r.total_respostas < r.total_questoes) return { texto: 'Em andamento', classe: 'bg-secondary-light text-secondary-ink' };
-  return { texto: 'Finalizada', classe: 'bg-success-light text-success-ink' };
+  if (revisaoFinalizada(r)) return { texto: 'Finalizada', classe: 'bg-success-light text-success-ink' };
+  return { texto: 'Em andamento', classe: 'bg-secondary-light text-secondary-ink' };
 }
 
 export function tituloDaRevisao(r: { titulo: string | null; conteudo_texto: string }): string {

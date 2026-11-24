@@ -15,6 +15,7 @@ module.exports = {
         // secondary/success são cores de superfície (fundos, bordas, ícones). Para TEXTO
         // sobre branco elas não passam em AA (2.33:1 e 2.16:1), então existem os ink.
         'secondary-ink': '#C2410C',
+        'success-light': '#DFF5F0',
         'success-ink': '#0F766E',
         star: '#FFC107',
         danger: '#FF5D5D',
