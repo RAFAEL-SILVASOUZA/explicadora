@@ -97,6 +97,9 @@ export interface Dever {
   conteudo_texto: string;
   resumo_para_pais: string | null;
   chave_idempotencia?: string | null;
+  // Itens da biblioteca que alimentaram o plano. Sem eles a regeneração só teria
+  // o texto digitado e um dever criado a partir de foto não teria o que reler.
+  arquivo_ids: string[];
   lido_ate: number;
   concluido: boolean;
   criado_em: string;

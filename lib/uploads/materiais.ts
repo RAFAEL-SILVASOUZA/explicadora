@@ -16,6 +16,9 @@ export interface Materiais {
   imagens: ImagemProcessada[];
   avisos: string[];
   hashes: string[];
+  // Ids dos itens da biblioteca que alimentaram o material, na ordem em que chegaram.
+  // É o que permite a um dever reler as próprias fotos na regeneração.
+  ids: string[];
 }
 
 /**
@@ -63,6 +66,7 @@ export async function coletarMateriais(
   const avisos: string[] = [];
   const fontes: Fonte[] = [];
   const hashes: string[] = [];
+  const idsArquivo: string[] = [];
 
   for (const bruto of ids) {
     if (!ehUuid(bruto)) throw new MaterialInvalido('Selecione arquivos válidos da sua biblioteca.');
@@ -72,6 +76,7 @@ export async function coletarMateriais(
       const buffer = await lerBytesDoArquivo(arquivo);
       fontes.push({ nome: arquivo.nome, buffer });
       hashes.push(arquivo.hash);
+      idsArquivo.push(arquivo.id);
     } catch {
       avisos.push(`Não consegui ler "${arquivo.nome}" do seu arquivo salvo.`);
     }
@@ -90,9 +95,31 @@ export async function coletarMateriais(
     }
     fontes.push({ nome: guardado.arquivo.nome, buffer });
     hashes.push(guardado.arquivo.hash);
+    idsArquivo.push(guardado.arquivo.id);
   }
 
-  let texto = (formData.get('texto') as string) || '';
+  const processado = await processarFontes(fontes, (formData.get('texto') as string) || '');
+
+  return {
+    texto: processado.texto,
+    imagens: processado.imagens,
+    avisos: [...avisos, ...processado.avisos],
+    hashes,
+    ids: idsArquivo,
+  };
+}
+
+/**
+ * Bytes já carregados em texto + imagens. É o miolo da criação e da recarga: os
+ * tetos (MAX_TEXTO_PDF por PDF, MAX_IMAGENS no total) e os avisos de arquivo
+ * ilegível precisam ser os mesmos dos dois caminhos, senão a regeneração explicaria
+ * o dever com um material diferente do que o aluno enviou.
+ */
+async function processarFontes(
+  fontes: Fonte[], textoInicial: string,
+): Promise<{ texto: string; imagens: ImagemProcessada[]; avisos: string[] }> {
+  const avisos: string[] = [];
+  let texto = textoInicial;
   const imagens: ImagemProcessada[] = [];
 
   for (const fonte of fontes) {
@@ -128,5 +155,45 @@ export async function coletarMateriais(
     }
   }
 
-  return { texto, imagens, avisos, hashes };
+  return { texto, imagens, avisos };
+}
+
+/**
+ * Reconstrói as imagens e os hashes do material de um dever a partir dos ids
+ * arquivados na criação. Sem isto a regeneração só teria o texto digitado, e um
+ * dever criado a partir de foto não teria nada para a LLM reler.
+ *
+ * O texto fica de fora de propósito: deveres.conteudo_texto já é o texto montado na
+ * criação (enunciado + extrações de PDF). Somar as extrações de novo duplicaria o
+ * conteúdo enviado ao modelo.
+ *
+ * A posse entra na leitura de cada id: um arquivo que deixou de existir vira aviso e
+ * o restante segue, mesma política da criação.
+ */
+export async function recarregarMateriais(
+  contaId: string, arquivoIds: string[],
+): Promise<{ imagens: ImagemProcessada[]; hashes: string[]; avisos: string[] }> {
+  const pool = getPool();
+  const avisos: string[] = [];
+  const fontes: Fonte[] = [];
+  const hashes: string[] = [];
+
+  for (const id of arquivoIds) {
+    if (!ehUuid(id)) continue;
+    const arquivo = await getArquivoPorId(pool, id, contaId);
+    if (!arquivo) {
+      avisos.push('Um dos arquivos originais não está mais na sua biblioteca.');
+      continue;
+    }
+    try {
+      fontes.push({ nome: arquivo.nome, buffer: await lerBytesDoArquivo(arquivo) });
+      hashes.push(arquivo.hash);
+    } catch {
+      avisos.push(`Não consegui ler "${arquivo.nome}" do seu arquivo salvo.`);
+    }
+  }
+
+  const processado = await processarFontes(fontes, '');
+
+  return { imagens: processado.imagens, hashes, avisos: [...avisos, ...processado.avisos] };
 }

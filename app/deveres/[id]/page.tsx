@@ -149,6 +149,9 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
 
   const total = dados.slides.length;
   const progresso = Math.round(((indice + 1) / total) * 100);
+  // Regenerar precisa de material para a LLM reler: o texto digitado ou as fotos
+  // arquivadas na criação. Sem nenhum dos dois o botão só existiria para falhar.
+  const podeRegenerar = Boolean(dados.dever.conteudo_texto?.trim()) || dados.dever.arquivo_ids.length > 0;
 
   return (
     <>
@@ -228,11 +231,13 @@ export default function DeverDetalhe({ params }: { params: { id: string } }) {
           </p>
         )}
 
-        <div className="flex justify-center">
-          <button type="button" onClick={regenerar} disabled={regenerando} className="btn-secondary !w-auto">
-            <RefreshCw size={18} aria-hidden="true" /> {regenerando ? 'Regenerando...' : 'Gerar nova versão (0,5)'}
-          </button>
-        </div>
+        {podeRegenerar && (
+          <div className="flex justify-center">
+            <button type="button" onClick={regenerar} disabled={regenerando} className="btn-secondary !w-auto">
+              <RefreshCw size={18} aria-hidden="true" /> {regenerando ? 'Regenerando...' : 'Gerar nova versão (0,5)'}
+            </button>
+          </div>
+        )}
       </main>
     </>
   );

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Nunito } from 'next/font/google';
 import './globals.css';
 
@@ -8,6 +8,11 @@ const nunito = Nunito({
   variable: '--font-nunito',
   display: 'swap',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: 'EXPLICADORA — Até a 8ª Série',

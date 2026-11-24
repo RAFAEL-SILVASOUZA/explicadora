@@ -39,21 +39,14 @@ function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function comTimeout<T>(executar: () => Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('LLM timeout')), LLM_TIMEOUT_MS);
-    executar().then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
-
-async function comRetry<T>(executar: () => Promise<T>): Promise<T> {
+// O timeout entra como AbortSignal na chamada, não só como reject local: rejeitar a
+// promise libera o backend para o retry, mas a inferência continuaria rodando na GPU.
+// Com o sinal, o servidor LLM derruba a requisição e devolve o slot.
+async function comRetry<T>(executar: (signal: AbortSignal) => Promise<T>): Promise<T> {
   let ultimoErro: unknown;
   for (let tentativa = 0; tentativa < MAX_TENTATIVAS_LLM; tentativa++) {
     try {
-      return await comTimeout(executar);
+      return await executar(AbortSignal.timeout(LLM_TIMEOUT_MS));
     } catch (e) {
       ultimoErro = e;
       if (tentativa < MAX_TENTATIVAS_LLM - 1) {
@@ -85,7 +78,7 @@ export async function gerarPlano(conteudoTexto: string, imagens: ImagemProcessad
   ];
 
   for (let tentativa = 0; tentativa < MAX_TENTATIVAS_LLM; tentativa++) {
-    const plano = await comRetry(() => alvo.invoke(messages as any)) as Plano;
+    const plano = await comRetry((signal) => alvo.invoke(messages as any, { signal })) as Plano;
     if (Array.isArray(plano?.slides) && plano.slides.length > 0) return sanitizarPlano(plano);
   }
   throw new Error('A explicadora não devolveu nenhum slide.');
@@ -104,7 +97,7 @@ async function regenerarSlide(
     { role: 'user', content: [...conteudoDoUsuario(conteudoTexto, imagens), { type: 'text', text: prompt }] },
   ];
 
-  const novo = await comRetry(() => alvo.invoke(messages as any)) as Slide;
+  const novo = await comRetry((signal) => alvo.invoke(messages as any, { signal })) as Slide;
   const slides = plano.slides.slice();
   // A auditoria numera a partir de 1; o array é 0-based.
   slides[ordem - 1] = novo;
@@ -125,7 +118,7 @@ export async function revisarVazamento(plano: Plano): Promise<VazamentoResultado
   ];
   // O schema tem defaults para slide e motivo: em runtime os campos vêm sempre
   // preenchidos; o cast só alinha o tipo de saída do withStructuredOutput.
-  return await comRetry(() => alvo.invoke(messages as any)) as VazamentoResultado;
+  return await comRetry((signal) => alvo.invoke(messages as any, { signal })) as VazamentoResultado;
 }
 
 // Degradação final: além de regenerar não ter resolvido, trocar o texto do slide

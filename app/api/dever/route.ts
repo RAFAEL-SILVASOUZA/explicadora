@@ -66,7 +66,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'A explicadora não devolveu nenhum slide. Tente novamente.' }, { status: 500 });
       }
 
-      await setCache(getPool(), auth.contaId, hash, nivel, plano);
+      // Só o plano limpo entra no cache. Um plano neutralizado (a auditoria não
+      // conseguiu consertar o vazamento) é o pior resultado possível para aquele
+      // conteúdo: guardá-lo serviria o slide quebrado para sempre, sem nunca dar à
+      // LLM uma nova chance.
+      if (!vazamentoNaoCorrigido) {
+        await setCache(getPool(), auth.contaId, hash, nivel, plano);
+      }
     }
 
     if (!plano.slides || plano.slides.length === 0) {
@@ -95,6 +101,7 @@ export async function POST(req: NextRequest) {
         resumo_para_pais: plano.resumo_para_pais || null,
         chaveIdempotencia: chave,
         nivel,
+        arquivoIds: materiais.ids,
       });
 
       await criarSlides(client, id, plano.slides.map((s, i) => ({

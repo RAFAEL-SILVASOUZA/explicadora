@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { autenticar, naoAutorizado } from '@/lib/auth/guard';
 import { CUSTO_DEVER, consumirSaldo } from '@/lib/quota';
-import { getDever, getSlides, regenerarSlides, atualizarLeitura } from '@/lib/repos/deveres';
+import { getDever, regenerarSlides, atualizarLeitura } from '@/lib/repos/deveres';
 import { vincularMovimentoADever } from '@/lib/repos/movimentos';
 import { comTransacao } from '@/lib/repos/transacao';
 import { getPool } from '@/lib/db/pool';
 import { gerarPlanoSeguro } from '@/lib/deveres/llm';
-import { ImagemProcessada } from '@/lib/llm';
+import { hashConteudo, setCache } from '@/lib/deveres/cache';
+import { recarregarMateriais } from '@/lib/uploads/materiais';
 import { NivelAluno } from '@/lib/types';
 
 // Regenera o plano de um dever existente: substitui os slides e debita meia
@@ -22,18 +23,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const nivel: NivelAluno = dever.nivel === 'adolescente' || dever.nivel === 'adulto' ? dever.nivel : 'crianca';
 
-    // Regeneração precisa de texto: deveres criados só por foto não têm
-    // conteúdo arquivado para a LLM reler.
-    if (!dever.conteudo_texto.trim()) {
+    // Relê as fotos originais. Sem isto a regeneração só teria o texto digitado, e
+    // um dever criado a partir de foto não teria nada para a LLM reler.
+    const materiais = await recarregarMateriais(auth.contaId, dever.arquivo_ids);
+    for (const aviso of materiais.avisos) console.warn('[POST /api/dever/[id]/regenerar]', aviso);
+
+    if (!dever.conteudo_texto.trim() && materiais.imagens.length === 0) {
       return NextResponse.json(
-        { error: 'Este dever foi criado a partir de fotos e não possui texto arquivado para regeneração.' },
+        { error: 'Este dever não tem material arquivado para regeneração.' },
         { status: 400 },
       );
     }
 
-    // Re-gera o plano a partir do conteúdo salvo. Sem imagens (o dever não
-    // guarda as imagens; só o texto).
-    const { plano, vazamentoNaoCorrigido } = await gerarPlanoSeguro(dever.conteudo_texto, [] as ImagemProcessada[], nivel);
+    // A mesma chave da criação: é ela que faz o plano novo substituir o antigo em
+    // cache, em vez de deixar o aluno receber a explicação velha ao reenviar o
+    // mesmo conteúdo.
+    const hash = hashConteudo(dever.conteudo_texto, materiais.hashes, nivel);
+
+    const { plano, vazamentoNaoCorrigido } = await gerarPlanoSeguro(
+      dever.conteudo_texto, materiais.imagens, nivel,
+    );
 
     if (!plano.slides || plano.slides.length === 0) {
       return NextResponse.json({ error: 'A explicadora não devolveu nenhum slide. Tente novamente.' }, { status: 500 });
@@ -61,6 +70,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         { error: 'Você usou suas revisões. Resgate um token para continuar.' },
         { status: 402 },
       );
+    }
+
+    // Depois do commit: um plano que não chegou ao aluno não entra no cache. E um
+    // plano neutralizado também não, pelo mesmo motivo da criação: serviria o slide
+    // quebrado para sempre, sem dar à LLM uma nova chance.
+    if (!resultado.vazamentoNaoCorrigido) {
+      await setCache(getPool(), auth.contaId, hash, nivel, plano);
     }
     return NextResponse.json({
       ok: true,

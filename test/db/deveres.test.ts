@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { pool, prepararBanco, limparTabelas } from './helper';
 import { createConta } from '../../lib/repos/contas';
 import {
-  criarDever, criarSlides, getDever, getDeverPorChave, getSlides, listarDeveresComResumo,
+  criarDever, criarSlides, atualizarLeitura, getDever, getDeverPorChave, getSlides, listarDeveresComResumo,
 } from '../../lib/repos/deveres';
 import { comTransacao } from '../../lib/repos/transacao';
 import { consumirSaldo } from '../../lib/quota';
@@ -90,6 +90,46 @@ test('a mesma chave em contas diferentes coexistem (unicidade por conta)', async
   expect(idA).not.toBe(idB);
   expect((await getDeverPorChave(pool, a.id, 'chave-compartilhada'))?.id).toBe(idA);
   expect((await getDeverPorChave(pool, b.id, 'chave-compartilhada'))?.id).toBe(idB);
+});
+
+test('criarDever grava e relê os arquivos que alimentaram o plano', async () => {
+  const conta = await createConta('Ana', 'S', 'ana8@example.com', 'hash', 3);
+  const { rows: arquivo } = await pool.query(
+    `INSERT INTO arquivos (conta_id, nome, mime, tamanho, caminho, hash, origem)
+     VALUES ($1, 'pagina.png', 'image/png', 10, 'uploads/biblioteca/x.png', 'h1', 'dever')
+     RETURNING id`,
+    [conta.id],
+  );
+
+  const id = await criarDever(pool, conta.id, {
+    titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null,
+    arquivoIds: [arquivo[0].id],
+  });
+
+  expect((await getDever(id, conta.id))?.arquivo_ids).toEqual([arquivo[0].id]);
+  // Sem arquivos o padrao e o array vazio, nao null: a UI e a regeneracao leem .length.
+  const semArquivos = await criarDever(pool, conta.id, {
+    titulo: null, disciplina: null, conteudo_texto: 'y', resumo_para_pais: null,
+  });
+  expect((await getDever(semArquivos, conta.id))?.arquivo_ids).toEqual([]);
+});
+
+// lido_ate e a quantidade de slides lidos. Um valor maior que o total (chamada
+// direta a API, ou um dever regenerado que ficou com menos slides) faria a barra de
+// progresso da grid passar dos 100%. O clamp acontece no SQL.
+test('atualizarLeitura nunca grava lido_ate maior que o total de slides', async () => {
+  const conta = await createConta('Ana', 'S', 'ana9@example.com', 'hash', 3);
+  const id = await criarDever(pool, conta.id, {
+    titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null,
+  });
+  await criarSlides(pool, id, [{ ordem: 1, titulo: 'a', explicacao: 'a' }]);
+
+  await atualizarLeitura(pool, id, 999, true);
+  expect((await getDever(id, conta.id))?.lido_ate).toBe(1);
+
+  // O caminho normal continua intacto: dentro da faixa, o valor passa.
+  await atualizarLeitura(pool, id, 1, false);
+  expect((await getDever(id, conta.id))?.lido_ate).toBe(1);
 });
 
 test('vincularMovimentoADever liga o consumo ao dever', async () => {

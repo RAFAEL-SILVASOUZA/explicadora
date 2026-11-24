@@ -17,13 +17,13 @@ export function tituloDaRevisao(r: { titulo: string | null; conteudo_texto: stri
 
 export default function RevisaoGrid({ revisoes }: { revisoes: ResumoRevisao[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {revisoes.map((r) => {
         const status = statusDaRevisao(r);
         return (
           <Link key={r.id} href={`/revisoes/${r.id}`}
-            className="card block min-w-0 hover:shadow-card-hover transition-shadow">
-            <p className="font-extrabold text-ink text-lg truncate mb-2">{tituloDaRevisao(r)}</p>
+            className="card block min-w-0 overflow-hidden hover:shadow-card-hover transition-shadow">
+            <p className="font-extrabold text-ink text-lg mb-2 line-clamp-2 break-words">{tituloDaRevisao(r)}</p>
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className={`badge ${status.classe}`}>{status.texto}</span>
               <span className="badge bg-primary-light text-primary-dark">
@@ -43,7 +43,7 @@ export default function RevisaoGrid({ revisoes }: { revisoes: ResumoRevisao[] })
 
 export function NovaRevisaoBotao() {
   return (
-    <Link href="/revisoes/nova" className="btn-primary !w-auto">
+    <Link href="/revisoes/nova" className="btn-primary !w-full sm:!w-auto">
       <Plus size={22} aria-hidden="true" /> Nova revisão
     </Link>
   );

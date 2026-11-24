@@ -35,9 +35,9 @@ export default function Revisoes() {
     <>
       <Header />
       <main className="shell py-8 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-primary flex items-center gap-2">
-            <History size={28} aria-hidden="true" /> Área de revisões
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-primary flex items-center gap-2 min-w-0">
+            <History size={28} aria-hidden="true" className="shrink-0" /> Área de revisões
           </h1>
           <NovaRevisaoBotao />
         </div>
