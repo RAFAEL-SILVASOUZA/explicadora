@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { History, KeyRound } from 'lucide-react';
+import { History, KeyRound, Backpack } from 'lucide-react';
 import Header from '@/components/Header';
 import Mascote from '@/components/Mascote';
 import ProgressoHome from '@/components/ProgressoHome';
@@ -28,18 +28,23 @@ export default function Home() {
             ação principal. As métricas ficam antes dos cartões de ação de propósito. */}
         <ProgressoHome />
 
-        {/* A ação principal da home é estudar, então ela vem antes dos créditos: o olho da
-            criança cai aqui primeiro, e o pacote é consequência, não o caminho. */}
-        <section className="card text-center" aria-labelledby="entrar-revisoes">
-          <h2 id="entrar-revisoes" className="text-2xl font-extrabold text-ink mb-3">Hora de estudar</h2>
+        {/* Estudar é a ação principal da home: duas áreas (revisões e dever de casa),
+            cada uma com o seu atalho. Vem antes dos créditos — a ação não é consequência. */}
+        <section className="card text-center" aria-labelledby="entrar-estudo">
+          <h2 id="entrar-estudo" className="text-2xl font-extrabold text-ink mb-3">Hora de estudar</h2>
           <p className="text-ink/70 mb-5">
-            Na área de revisões você cria uma nova revisão e vê o histórico com as perguntas, as respostas e o resultado.
+            Revise o conteúdo com uma nova revisão ou estude o dever de casa em slides — dois jeitos de estudar.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-col items-center gap-4">
             <Mascote humor="feliz" className="w-16 h-16 shrink-0" decorative />
-            <Link href="/revisoes" className="btn-primary !w-auto">
-              <History size={22} aria-hidden="true" /> Ir para as revisões
-            </Link>
+            <div className="flex w-full flex-wrap items-center justify-center gap-3 sm:w-auto">
+              <Link href="/revisoes" className="btn-primary w-full sm:w-auto">
+                <History size={22} aria-hidden="true" /> Ir para as revisões
+              </Link>
+              <Link href="/deveres" className="btn-secondary w-full sm:w-auto">
+                <Backpack size={22} aria-hidden="true" /> Ir para o dever de casa
+              </Link>
+            </div>
           </div>
         </section>
 
