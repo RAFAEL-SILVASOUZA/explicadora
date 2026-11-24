@@ -22,7 +22,7 @@ export default function RevisaoGrid({ revisoes }: { revisoes: ResumoRevisao[] })
         const status = statusDaRevisao(r);
         return (
           <Link key={r.id} href={`/revisoes/${r.id}`}
-            className="card block hover:shadow-card-hover transition-shadow">
+            className="card block min-w-0 hover:shadow-card-hover transition-shadow">
             <p className="font-extrabold text-ink text-lg truncate mb-2">{tituloDaRevisao(r)}</p>
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className={`badge ${status.classe}`}>{status.texto}</span>

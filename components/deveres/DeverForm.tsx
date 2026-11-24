@@ -23,6 +23,8 @@ export default function DeverForm() {
   const [erro, setErro] = useState('');
   const [avisoArquivos, setAvisoArquivos] = useState('');
   const [retomando, setRetomando] = useState(() => lerTentativaDever() !== null);
+  const [nivel, setNivel] = useState<'crianca' | 'adolescente' | 'adulto'>('crianca');
+  const [etapa, setEtapa] = useState(0);
 
   // Retomada: a geração é longa e o pai pode sair no meio. Se o servidor
   // commitou, o dever já existe: redireciona em vez de mostrar o form.
@@ -50,14 +52,19 @@ export default function DeverForm() {
     if (carregando || (!texto.trim() && arquivos.length === 0 && bibliotecaIds.length === 0)) return;
     setCarregando(true);
     setErro('');
+    setEtapa(0);
 
     const chave = crypto.randomUUID();
     guardarTentativaDever(chave);
 
     const formData = new FormData();
     formData.append('texto', texto.trim());
+    formData.append('nivel', nivel);
     for (const id of bibliotecaIds) formData.append('arquivoIds', id);
     for (const file of arquivos) formData.append('arquivos', file);
+
+    const etapas = ['Lendo os arquivos...', 'Analisando o dever...', 'Gerando os slides...', 'Revisando a explicação...'];
+    const timer = setInterval(() => setEtapa((e) => Math.min(e + 1, etapas.length - 1)), 4000);
 
     try {
       const res = await apiFetch('/api/dever', {
@@ -74,19 +81,23 @@ export default function DeverForm() {
       if (!res.ok) throw new Error(data.error);
       limparTentativaDever();
       notificarSaldo();
-      router.push(`/deveres/${data.id}`);
+      const aviso = data.vazamentoNaoCorrigido ? '?aviso=vazamento' : '';
+      router.push(`/deveres/${data.id}${aviso}`);
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Algo deu errado. Tente novamente.');
       setCarregando(false);
+    } finally {
+      clearInterval(timer);
     }
   };
 
   if (carregando || retomando) {
+    const etapas = ['Lendo os arquivos...', 'Analisando o dever...', 'Gerando os slides...', 'Revisando a explicação...'];
     return (
       <div>
         <LoadingQuestoes />
         <p className="text-center text-ink/60 text-lg -mt-4">
-          A Explicadora está olhando o dever e preparando a explicação. Isso pode levar um minuto.
+          {carregando ? etapas[etapa] : 'A Explicadora está olhando o dever e preparando a explicação. Isso pode levar um minuto.'}
         </p>
       </div>
     );
@@ -94,6 +105,23 @@ export default function DeverForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label htmlFor="dever-nivel" className="block text-xl font-semibold text-ink mb-2">
+          Quem vai usar esta explicação?
+        </label>
+        <select
+          id="dever-nivel"
+          name="dever-nivel"
+          value={nivel}
+          onChange={(e) => setNivel(e.target.value as 'crianca' | 'adolescente' | 'adulto')}
+          className="input"
+        >
+          <option value="crianca">Criança (8 a 14 anos)</option>
+          <option value="adolescente">Adolescente (14 a 18 anos)</option>
+          <option value="adulto">Adulto</option>
+        </select>
+      </div>
+
       <div>
         <label htmlFor="dever-enunciado" className="block text-xl font-semibold text-ink mb-2">
           Escreva o enunciado (opcional)

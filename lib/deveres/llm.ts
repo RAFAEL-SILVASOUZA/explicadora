@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { ImagemProcessada } from '../llm';
 import { PlanoSchema, Plano, Slide, SlideSchema, sanitizarPlano } from './slides';
 import {
-  PROMPT_AUDITORIA, PROMPT_CONTEXTO_DEVER, PROMPT_REGENERAR_SLIDE, PROMPT_PLANO,
+  PROMPT_AUDITORIA, PROMPT_CONTEXTO_DEVER, PROMPT_REGENERAR_SLIDE, PROMPT_PLANO, PROMPT_PLANO_NIVEL,
 } from './prompts';
+import { NivelAluno } from '../types';
 
 const LLM_BASE_URL = process.env.LLM_BASE_URL || 'http://192.168.18.4:1234/v1';
 const LLM_MODEL = process.env.LLM_MODEL || 'local-model';
@@ -12,6 +13,7 @@ const LLM_API_KEY = process.env.LLM_API_KEY || 'local';
 
 const MAX_TENTATIVAS_LLM = 3;
 const MAX_TENTATIVAS_VAZAMENTO = 2;
+const LLM_TIMEOUT_MS = 120_000;
 
 export const FRASE_NEUTRA = 'Vamos praticar isso com os números do seu caderno.';
 
@@ -37,14 +39,27 @@ function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function comTimeout<T>(executar: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('LLM timeout')), LLM_TIMEOUT_MS);
+    executar().then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 async function comRetry<T>(executar: () => Promise<T>): Promise<T> {
   let ultimoErro: unknown;
   for (let tentativa = 0; tentativa < MAX_TENTATIVAS_LLM; tentativa++) {
     try {
-      return await executar();
+      return await comTimeout(executar);
     } catch (e) {
       ultimoErro = e;
-      if (tentativa < MAX_TENTATIVAS_LLM - 1) await esperar(500 * (tentativa + 1));
+      if (tentativa < MAX_TENTATIVAS_LLM - 1) {
+        const jitter = Math.random() * 250;
+        await esperar(500 * (tentativa + 1) + jitter);
+      }
     }
   }
   throw ultimoErro;
@@ -61,10 +76,11 @@ function conteudoDoUsuario(conteudoTexto: string, imagens: ImagemProcessada[]): 
   return partes;
 }
 
-export async function gerarPlano(conteudoTexto: string, imagens: ImagemProcessada[]): Promise<Plano> {
+export async function gerarPlano(conteudoTexto: string, imagens: ImagemProcessada[], nivel: NivelAluno = 'crianca'): Promise<Plano> {
   const alvo = llm.withStructuredOutput(PlanoSchema, { name: 'gerar_plano' });
+  const prompt = PROMPT_PLANO_NIVEL[nivel] ?? PROMPT_PLANO;
   const messages = [
-    { role: 'system', content: PROMPT_PLANO },
+    { role: 'system', content: prompt },
     { role: 'user', content: conteudoDoUsuario(conteudoTexto, imagens) },
   ];
 
@@ -76,7 +92,7 @@ export async function gerarPlano(conteudoTexto: string, imagens: ImagemProcessad
 }
 
 async function regenerarSlide(
-  plano: Plano, ordem: number, conteudoTexto: string, imagens: ImagemProcessada[], motivo: string,
+  plano: Plano, ordem: number, conteudoTexto: string, imagens: ImagemProcessada[], motivo: string, nivel: NivelAluno = 'crianca',
 ): Promise<Plano> {
   const alvo = llm.withStructuredOutput(SlideSchema, { name: 'regenerar_slide' });
   const prompt = PROMPT_REGENERAR_SLIDE
@@ -84,7 +100,7 @@ async function regenerarSlide(
     .replace('{{ORDEM}}', String(ordem));
 
   const messages = [
-    { role: 'system', content: PROMPT_PLANO },
+    { role: 'system', content: PROMPT_PLANO_NIVEL[nivel] ?? PROMPT_PLANO },
     { role: 'user', content: [...conteudoDoUsuario(conteudoTexto, imagens), { type: 'text', text: prompt }] },
   ];
 
@@ -127,9 +143,9 @@ export function neutralizarSlide(plano: Plano, ordem: number): Plano {
 // neutraliza o slide (texto fixo), em vez de descartar o dever que o pai pagou
 // para criar.
 export async function gerarPlanoSeguro(
-  conteudoTexto: string, imagens: ImagemProcessada[],
+  conteudoTexto: string, imagens: ImagemProcessada[], nivel: NivelAluno = 'crianca',
 ): Promise<{ plano: Plano; vazamentoNaoCorrigido: boolean }> {
-  let plano = await gerarPlano(conteudoTexto, imagens);
+  let plano = await gerarPlano(conteudoTexto, imagens, nivel);
 
   for (let tentativa = 0; tentativa <= MAX_TENTATIVAS_VAZAMENTO; tentativa++) {
     const auditoria = await revisarVazamento(plano);
@@ -150,7 +166,7 @@ export async function gerarPlanoSeguro(
       console.warn(
         `[deveres] vazamento reportado com índice inválido (${auditoria.slide}) não regenerado: ${auditoria.motivo}`,
       );
-      return { plano: sanitizarPlano(plano), vazamentoNaoCorrigido: false };
+      return { plano: sanitizarPlano(plano), vazamentoNaoCorrigido: true };
     }
 
     if (tentativa === MAX_TENTATIVAS_VAZAMENTO) {
@@ -161,7 +177,7 @@ export async function gerarPlanoSeguro(
       };
     }
 
-    plano = await regenerarSlide(plano, auditoria.slide, conteudoTexto, imagens, auditoria.motivo);
+    plano = await regenerarSlide(plano, auditoria.slide, conteudoTexto, imagens, auditoria.motivo, nivel);
   }
 
   // Inalcançável: o laço sempre retorna dentro do limite.

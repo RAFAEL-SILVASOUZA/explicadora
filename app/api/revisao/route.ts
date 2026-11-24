@@ -48,15 +48,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const saldo = await consumirSaldo(client, auth.contaId);
-      if (saldo === null) return { status: 402 };
+      const consumo = await consumirSaldo(client, auth.contaId);
+      if (consumo === null) return { status: 402 };
       // Saldo esgotado: consumirSaldo não escreveu nada, então o COMMIT do helper
       // não grava nada. Equivalente ao ROLLBACK que a rota faria nesse caminho.
       const questoes = await gerarQuestoes(conteudoCompleto, imagens);
       const id = await criarRevisao(client, auth.contaId, conteudoCompleto, null, chave);
       await createQuestoes(client, id, questoes, 1);
-      await vincularMovimentoARevisao(client, auth.contaId, id);
-      return { status: 200, id, saldo };
+      await vincularMovimentoARevisao(client, auth.contaId, id, consumo.movimentoId);
+      return { status: 200, id, saldo: consumo.saldo };
     });
 
     if (resultado.status === 402) {

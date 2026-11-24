@@ -1,4 +1,8 @@
 import { MAX_ARQUIVOS_POR_ENVIO, MAX_IMAGENS } from '../constantes';
+
+// Limite de caracteres de texto extraído de PDFs: PDFs grandes geram prompts
+// gigantes (custo e latência). 20k caracteres cobrem um dever de casa inteiro.
+const MAX_TEXTO_PDF = 20_000;
 import { getPool } from '../db/pool';
 import { ImagemProcessada } from '../llm';
 import { processarImagem } from '../imagem';
@@ -11,6 +15,7 @@ export interface Materiais {
   texto: string;
   imagens: ImagemProcessada[];
   avisos: string[];
+  hashes: string[];
 }
 
 /**
@@ -57,13 +62,16 @@ export async function coletarMateriais(
 
   const avisos: string[] = [];
   const fontes: Fonte[] = [];
+  const hashes: string[] = [];
 
   for (const bruto of ids) {
     if (!ehUuid(bruto)) throw new MaterialInvalido('Selecione arquivos válidos da sua biblioteca.');
     const arquivo = await getArquivoPorId(pool, bruto, contaId);
     if (!arquivo) throw new MaterialInvalido('Um dos arquivos selecionados não está na sua biblioteca.');
     try {
-      fontes.push({ nome: arquivo.nome, buffer: await lerBytesDoArquivo(arquivo) });
+      const buffer = await lerBytesDoArquivo(arquivo);
+      fontes.push({ nome: arquivo.nome, buffer });
+      hashes.push(arquivo.hash);
     } catch {
       avisos.push(`Não consegui ler "${arquivo.nome}" do seu arquivo salvo.`);
     }
@@ -81,6 +89,7 @@ export async function coletarMateriais(
       continue;
     }
     fontes.push({ nome: guardado.arquivo.nome, buffer });
+    hashes.push(guardado.arquivo.hash);
   }
 
   let texto = (formData.get('texto') as string) || '';
@@ -96,7 +105,12 @@ export async function coletarMateriais(
     }
     if (tipo === 'pdf') {
       try {
-        texto += `\n\n--- Conteúdo do PDF: ${fonte.nome} ---\n${await extrairTextoPDF(fonte.buffer)}`;
+        const textoPDF = await extrairTextoPDF(fonte.buffer);
+        const textoLimitado = textoPDF.slice(0, MAX_TEXTO_PDF);
+        if (textoPDF.length > MAX_TEXTO_PDF) {
+          avisos.push(`PDF "${fonte.nome}" é grande demais: só os primeiros ${MAX_TEXTO_PDF} caracteres foram usados.`);
+        }
+        texto += `\n\n--- Conteúdo do PDF: ${fonte.nome} ---\n${textoLimitado}`;
       } catch {
         avisos.push(`Não consegui ler o texto do PDF "${fonte.nome}".`);
       }
@@ -114,5 +128,5 @@ export async function coletarMateriais(
     }
   }
 
-  return { texto, imagens, avisos };
+  return { texto, imagens, avisos, hashes };
 }

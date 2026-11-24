@@ -23,8 +23,15 @@ export async function registrarMovimento(
 // UPDATE da próxima revisão roubaria um consumo já commitado a um dever,
 // corrompendo o extrato.
 export async function vincularMovimentoARevisao(
-  client: PoolClient, contaId: string, revisaoId: string,
+  client: PoolClient, contaId: string, revisaoId: string, movimentoId?: number,
 ): Promise<void> {
+  if (movimentoId !== undefined) {
+    await client.query(
+      `UPDATE movimentos_saldo SET revisao_id = $1 WHERE id = $2 AND conta_id = $3`,
+      [revisaoId, movimentoId, contaId],
+    );
+    return;
+  }
   await client.query(
     `UPDATE movimentos_saldo SET revisao_id = $1
      WHERE conta_id = $2 AND tipo = $3 AND revisao_id IS NULL AND dever_id IS NULL`,
@@ -35,8 +42,15 @@ export async function vincularMovimentoARevisao(
 // Igual ao vínculo da revisão: consumirSaldo insere o movimento sem referência e
 // o vínculo acontece depois que o dever existe.
 export async function vincularMovimentoADever(
-  client: PoolClient, contaId: string, deverId: string,
+  client: PoolClient, contaId: string, deverId: string, movimentoId?: number,
 ): Promise<void> {
+  if (movimentoId !== undefined) {
+    await client.query(
+      `UPDATE movimentos_saldo SET dever_id = $1 WHERE id = $2 AND conta_id = $3`,
+      [deverId, movimentoId, contaId],
+    );
+    return;
+  }
   await client.query(
     `UPDATE movimentos_saldo SET dever_id = $1
      WHERE conta_id = $2 AND tipo = $3 AND dever_id IS NULL AND revisao_id IS NULL`,

@@ -12,7 +12,7 @@ afterAll(async () => { await pool.end(); });
 test('consumirSaldo decrementa e registra o movimento', async () => {
   const conta = await createConta('Ana', 'Souza', 'ana@example.com', 'hash', 3);
   const novo = await comTransacao((c) => consumirSaldo(c, conta.id));
-  expect(novo).toBe(2);
+  expect(novo?.saldo).toBe(2);
   const { rows } = await pool.query('SELECT tipo, quantidade FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
   expect(rows).toEqual([{ tipo: 'consumo', quantidade: -1 }]);
 });
@@ -31,7 +31,7 @@ test('consumirSaldo devolve null com saldo 0 e não insere movimento', async () 
 test('consumirSaldo com custo 0,5 decrementa e registra meia revisão', async () => {
   const conta = await createConta('Ana', 'Souza', 'meia@example.com', 'hash', 3);
   const novo = await comTransacao((c) => consumirSaldo(c, conta.id, 0.5));
-  expect(novo).toBe(2.5);
+  expect(novo?.saldo).toBe(2.5);
   const { rows } = await pool.query('SELECT tipo, quantidade FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
   expect(rows).toEqual([{ tipo: 'consumo', quantidade: -0.5 }]);
 });
@@ -41,7 +41,7 @@ test('saldo 0,5 paga um dever mas não uma revisão', async () => {
   expect(await comTransacao((c) => consumirSaldo(c, conta.id))).toBeNull();
   const { rows: antes } = await pool.query('SELECT id FROM movimentos_saldo WHERE conta_id = $1', [conta.id]);
   expect(antes).toHaveLength(0);
-  expect(await comTransacao((c) => consumirSaldo(c, conta.id, 0.5))).toBe(0);
+  expect((await comTransacao((c) => consumirSaldo(c, conta.id, 0.5)))?.saldo).toBe(0);
 });
 
 test('dois consumos simultâneos na mesma conta não gastam a mesma revisão', async () => {

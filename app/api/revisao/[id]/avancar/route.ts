@@ -33,11 +33,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const modo: ModoFocado = questoesErradas.length === 0 ? 'proximo_nivel' : 'foco_nos_erros';
 
     const resultado = await comTransacao(async (client): Promise<ResultadoAvancar> => {
-      const saldo = await consumirSaldo(client, auth.contaId);
-      if (saldo === null) return { status: 402 };
+      const consumo = await consumirSaldo(client, auth.contaId);
+      if (consumo === null) return { status: 402 };
       const novasQuestoes = await gerarQuestoesFocadas(revisao.conteudo_texto, questoesErradas, modo);
       await createQuestoes(client, params.id, novasQuestoes, questoes.length + 1);
-      await vincularMovimentoARevisao(client, auth.contaId, params.id);
+      await vincularMovimentoARevisao(client, auth.contaId, params.id, consumo.movimentoId);
       return { status: 200, total: questoes.length + novasQuestoes.length };
     });
 

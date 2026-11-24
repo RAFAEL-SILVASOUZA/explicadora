@@ -11,9 +11,14 @@ export const CUSTO_DEVER = 0.5;
 // aberta pelo chamador, com FOR UPDATE, para que duas requisições simultâneas
 // da mesma conta não gastem o mesmo crédito. O saldo precisa cobrir o custo:
 // com 0,5 dá para criar um dever, mas não para rodar uma revisão.
+export interface ConsumoSaldo {
+  saldo: number;
+  movimentoId: number;
+}
+
 export async function consumirSaldo(
   client: PoolClient, contaId: string, custo: number = CUSTO_REVISAO,
-): Promise<number | null> {
+): Promise<ConsumoSaldo | null> {
   const { rows } = await client.query(
     'SELECT saldo_revisoes FROM contas WHERE id = $1 FOR UPDATE',
     [contaId],
@@ -23,9 +28,9 @@ export async function consumirSaldo(
 
   const novo = atual - custo;
   await client.query('UPDATE contas SET saldo_revisoes = $1 WHERE id = $2', [novo, contaId]);
-  await client.query(
-    `INSERT INTO movimentos_saldo (conta_id, tipo, quantidade) VALUES ($1, 'consumo', $2)`,
+  const { rows: movRows } = await client.query(
+    `INSERT INTO movimentos_saldo (conta_id, tipo, quantidade) VALUES ($1, 'consumo', $2) RETURNING id`,
     [contaId, -custo],
   );
-  return novo;
+  return { saldo: novo, movimentoId: movRows[0].id as number };
 }

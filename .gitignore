@@ -56,3 +56,7 @@ Thumbs.db
 
 # banco local (Ruling VV): sem esta linha um estudo.db vivo ficava commitável
 data/
+
+# screenshots de verificacao e temporarios
+.tmp/
+screenshots/

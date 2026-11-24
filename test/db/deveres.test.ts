@@ -95,8 +95,8 @@ test('a mesma chave em contas diferentes coexistem (unicidade por conta)', async
 test('vincularMovimentoADever liga o consumo ao dever', async () => {
   const conta = await createConta('Ana', 'S', 'ana6@example.com', 'hash', 3);
   await comTransacao(async (client) => {
-    const saldo = await consumirSaldo(client, conta.id);
-    expect(saldo).toBe(2);
+    const consumo = await consumirSaldo(client, conta.id);
+    expect(consumo?.saldo).toBe(2);
     const id = await criarDever(client, conta.id, {
       titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null,
     });
@@ -125,8 +125,8 @@ test('vincularMovimentoARevisao não captura um movimento já vinculado a um dev
   const revisaoId = await criarRevisao(pool, conta.id, 'Sistema solar', null);
 
   await comTransacao(async (client) => {
-    const saldo = await consumirSaldo(client, conta.id);
-    expect(saldo).toBe(2);
+    const consumo = await consumirSaldo(client, conta.id);
+    expect(consumo?.saldo).toBe(2);
     const deverId = await criarDever(client, conta.id, {
       titulo: null, disciplina: null, conteudo_texto: 'x', resumo_para_pais: null,
     });

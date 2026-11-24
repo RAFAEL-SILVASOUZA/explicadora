@@ -85,15 +85,20 @@ export interface QuestaoInput {
   dica: string;
 }
 
+export type NivelAluno = 'crianca' | 'adolescente' | 'adulto';
+
 export interface Dever {
   id: string;
   conta_id: string;
   titulo: string | null;
   disciplina: string | null;
   serie_ano: string;
+  nivel: NivelAluno;
   conteudo_texto: string;
   resumo_para_pais: string | null;
   chave_idempotencia?: string | null;
+  lido_ate: number;
+  concluido: boolean;
   criado_em: string;
 }
 
