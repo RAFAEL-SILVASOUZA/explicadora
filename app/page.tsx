@@ -41,7 +41,10 @@ export default function Home() {
               <Link href="/revisoes" className="btn-primary w-full sm:w-auto">
                 <History size={22} aria-hidden="true" /> Ir para as revisões
               </Link>
-              <Link href="/deveres" className="btn-secondary w-full sm:w-auto">
+              {/* Par de CTAs idênticos em tamanho e fonte: uma ação só (estudar) em dois
+                  tons — primário carrega o foco, secundário mantém a moldura. Utilitários do
+                  componente sobrescrevem a classe base (camada utilities depois de components). */}
+              <Link href="/deveres" className="btn-secondary w-full sm:w-auto text-xl font-extrabold py-4 px-6">
                 <Backpack size={22} aria-hidden="true" /> Ir para o dever de casa
               </Link>
             </div>
