@@ -93,3 +93,6 @@ reutilizados). Manter `MAX_IMAGENS` contado à parte em cada fonte permitiria 80
 chamada de LLM. O teto é do contexto de visão, então uma função só (`coletarMateriais`) soma as duas
 fontes contra o mesmo contador — e o formulário precisa saber quantas imagens a biblioteca marcou
 para aplicar o mesmo número antes de enviar.
+
+## Dois 007 convivem; o nome é a chave
+`migrations/` tem `007_deveres_slides.sql` e `007_pagamentos.sql`, e não é bug: o runner (`lib/db/migrate.ts`) ordena por nome de arquivo, aplica cada um em transação e registra na tabela `migrations` pelo **nome exato**. Os dois já rodaram e não dependem um do outro. O perigo é renomear: um nome novo é uma migration inédita para o banco, que re-aplica o arquivo — e o 007 de slides faz `RENAME COLUMN` (não idempotente), matando o boot (`instrumentation.ts`). Regra: arquivo já aplicado nunca é renomeado; numeração nova continua em `010+`. O teste `os dois 007 coexistem pelo nome exato` (test/db/migrations.test.ts) guarda os nomes.

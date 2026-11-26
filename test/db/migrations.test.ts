@@ -103,3 +103,16 @@ test('migração 008 deixa saldo e extrato como numeric', async () => {
   expect(rows).toHaveLength(2);
   expect(rows.every(r => r.data_type === 'numeric')).toBe(true);
 });
+
+// Os dois 007 convivem de propósito (nasceram em branches paralelos) e o runner
+// rastreia por nome de arquivo. Este teste fixa os nomes: renomear qualquer um
+// dos dois quebra o suite de banco antes de quebrar o boot de produção.
+test('os dois 007 coexistem pelo nome exato', async () => {
+  const { rows } = await pool.query(
+    `SELECT name FROM migrations WHERE name LIKE '007_%' ORDER BY name`,
+  );
+  expect(rows.map(r => r.name)).toEqual([
+    '007_deveres_slides.sql',
+    '007_pagamentos.sql',
+  ]);
+});

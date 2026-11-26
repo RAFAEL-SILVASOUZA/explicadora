@@ -1,3 +1,9 @@
+-- AVISO: não renomeie este arquivo. Ele coexiste de propósito com
+-- 007_deveres_slides.sql (nasceram em branches paralelos; o runner ordena por
+-- nome e aplica os dois). O nome é a chave da tabela `migrations`: renomear
+-- faria o banco re-aplicar o arquivo e deixaria registro órfão. Este SQL é
+-- idempotente, mas o nome fica onde está. Numeração nova: 010+.
+
 -- Tabela de pedidos de pagamento (uma linha por sessão de checkout iniciada).
 -- Garante idempotência no webhook: o saldo só é creditado quando status = 'pending'.
 CREATE TABLE IF NOT EXISTS pedidos_pagamento (
