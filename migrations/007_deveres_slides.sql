@@ -2,7 +2,7 @@
 -- 007_pagamentos.sql (nasceram em branches paralelos; o runner ordena por nome
 -- e aplica os dois). O nome é a chave da tabela `migrations`: renomear faria o
 -- banco re-aplicar este arquivo, que NÃO é idempotente (os RENAME falham se já
--- aplicados) e o boot via instrumentation.ts morreria. Numeração nova: 010+.
+-- aplicados) e o boot via instrumentation.ts morreria. Numeração nova: 013+.
 
 -- O dever de casa deixa de ser animação em canvas + narração em áudio e passa a
 -- ser slides curtos. A explicação escrita é o produto; cena, áudio e duração não
